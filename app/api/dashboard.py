@@ -26,6 +26,7 @@ async def active_incidents(
             """
             SELECT i.id, i.user_id, i.priority::text AS priority, i.status::text AS status,
                    i.source::text AS source, i.silent, i.bystander_mode, i.lat, i.lng,
+                   i.cluster_id, i.is_mci, i.is_mci_coordinator,
                    LEFT(i.description, 180) AS description_preview, i.created_at, i.resolved_at,
                    EXTRACT(EPOCH FROM (NOW() - i.created_at))::int AS age_seconds,
                    COALESCE(n.notification_count, 0)::int AS notifications_sent,
@@ -165,14 +166,11 @@ async def incident_timeline(
             SELECT 'notification' AS event_type, created_at, channel, recipient_type, recipient, status, payload
             FROM notification_logs
             WHERE incident_id = :incident_id
-<<<<<<< HEAD
             UNION ALL
             SELECT 'responder_attempt' AS event_type, created_at, channel, responder_type AS recipient_type,
                    responder_id::text AS recipient, status, payload
             FROM incident_responder_attempts
             WHERE incident_id = :incident_id
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
             ORDER BY created_at ASC
             """
         ),

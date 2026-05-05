@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import hmac
 import json
 import logging
 from typing import Any, Dict
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.services.task_queue import task_queue
 
@@ -16,9 +20,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 class MeshPacket(BaseModel):
-    payload_b64: str  # Base64 encoded JSON string
-    signature: str    # Simple HMAC or hash for deduplication/verification
-    hops: int = 0
+    payload_b64: str = Field(..., min_length=8, max_length=12000)  # Base64 encoded JSON string
+    signature: str = Field(..., min_length=64, max_length=64, pattern="^[0-9a-fA-F]{64}$")
+    hops: int = Field(default=0, ge=0, le=12)
+
+
+def _mesh_signing_key() -> str:
+    return settings.MESH_RELAY_SIGNING_KEY or settings.SECRET_KEY
 
 
 @router.post("/mesh-relay")
@@ -32,13 +40,9 @@ async def receive_mesh_relay(
     Accepts a compressed SOS packet forwarded by a peer device that has regained
     connectivity. Validates HMAC signature to prevent spam/abuse.
     """
-    from app.core.config import settings
-    import hmac
-    import hashlib
-
     # 1. Verify Signature
     expected_sig = hmac.new(
-        settings.SECRET_KEY.encode('utf-8'),
+        _mesh_signing_key().encode('utf-8'),
         packet.payload_b64.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
@@ -49,7 +53,9 @@ async def receive_mesh_relay(
 
     # 2. Decode payload
     try:
-        decoded_bytes = base64.b64decode(packet.payload_b64)
+        decoded_bytes = base64.b64decode(packet.payload_b64, validate=True)
+        if len(decoded_bytes) > settings.MAX_MESH_PAYLOAD_BYTES:
+            raise ValueError("mesh payload too large")
         payload: Dict[str, Any] = json.loads(decoded_bytes.decode('utf-8'))
     except Exception as e:
         logger.warning(f"Invalid mesh packet received: {e}")
@@ -60,6 +66,16 @@ async def receive_mesh_relay(
     lng = payload.get("l", [None, None])[1]
     priority = payload.get("p")
     
+    try:
+        incident_id = str(UUID(str(incident_id)))
+        lat = float(lat)
+        lng = float(lng)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid critical fields in mesh payload")
+
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        raise HTTPException(status_code=400, detail="Invalid mesh coordinates")
+
     if not incident_id or lat is None or lng is None:
         raise HTTPException(status_code=400, detail="Missing critical fields in mesh payload")
 

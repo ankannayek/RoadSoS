@@ -30,7 +30,4 @@ class User(Base):
 
     incidents = relationship("Incident", back_populates="user")
     volunteer_profile = relationship("Volunteer", back_populates="user", uselist=False)
-<<<<<<< HEAD
     private_profile = relationship("UserPrivateProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0

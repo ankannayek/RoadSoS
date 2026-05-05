@@ -1,8 +1,15 @@
+import base64
+import hashlib
+import hmac
 import json
 from typing import Any, Dict
 
+from app.core.config import settings
 from app.models.incident import Incident
-from app.models.user import User
+
+
+def _mesh_signing_key() -> str:
+    return settings.MESH_RELAY_SIGNING_KEY or settings.SECRET_KEY
 
 
 def generate_offline_payload(incident: Incident, services: list[Dict[str, Any]], contacts: list[Dict[str, Any]]) -> Dict[str, Any]:
@@ -47,9 +54,14 @@ def generate_offline_payload(incident: Incident, services: list[Dict[str, Any]],
         ]
     }
 
+    qr_data = json.dumps({"i": str(incident.id), "p": priority, "l": [incident.lat, incident.lng]}, separators=(',', ':'))
+    payload_b64 = base64.b64encode(qr_data.encode("utf-8")).decode("ascii")
+    signature = hmac.new(_mesh_signing_key().encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256).hexdigest()
+
     return {
         "sms_text": sms_text[:160], # Ensure it fits in a single standard SMS if possible
         "cache_bundle": cache_bundle,
-        "qr_data": json.dumps({"i": str(incident.id), "p": priority, "l": [incident.lat, incident.lng]}, separators=(',', ':')),
+        "qr_data": qr_data,
+        "relay_packet": {"payload_b64": payload_b64, "signature": signature, "hops": 0},
         "cache_ttl_hours": 72
     }

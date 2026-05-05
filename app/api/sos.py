@@ -15,10 +15,7 @@ from app.models.user import User
 from app.schemas.sos import IncidentOut, IncidentStatusUpdate, LiveLocationUpdate, OfflineServicesResponse, SMSFallbackPayload, SOSResponse, SOSTrigger
 from app.services.classifier import classify_emergency, response_eta
 from app.services.geo import get_offline_services_prefetch
-<<<<<<< HEAD
 from app.services.private_profile import load_private_profile
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 from app.services.task_queue import task_queue
 from app.services.websocket_manager import websocket_manager
 
@@ -26,14 +23,10 @@ router = APIRouter()
 
 
 async def _owned_incident(db: AsyncSession, incident_id: UUID, user: User) -> Incident:
-<<<<<<< HEAD
     if user.role in {"dispatcher", "judge", "admin"}:
         result = await db.execute(select(Incident).where(Incident.id == incident_id))
     else:
         result = await db.execute(select(Incident).where(Incident.id == incident_id, Incident.user_id == user.id))
-=======
-    result = await db.execute(select(Incident).where(Incident.id == incident_id, Incident.user_id == user.id))
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     incident = result.scalar_one_or_none()
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")
@@ -47,11 +40,7 @@ async def trigger_sos(payload: SOSTrigger, db: AsyncSession = Depends(get_db), c
     Fast path: validate JWT + deterministic triage + one DB transaction + HTTP 200.
     Slow path: geo matching, notifications, and escalation run from the durable job queue.
     """
-<<<<<<< HEAD
     priority_label, confidence = classify_emergency(payload.description, payload.impact_force or 0, payload.sensor_payload, source=payload.source)
-=======
-    priority_label, confidence = classify_emergency(payload.description, payload.impact_force or 0, payload.sensor_payload)
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     incident = Incident(
         user_id=current_user.id,
         description=payload.description,
@@ -76,7 +65,6 @@ async def trigger_sos(payload: SOSTrigger, db: AsyncSession = Depends(get_db), c
     await websocket_manager.publish_incident_event(str(incident.id), "created", {"priority": priority_label, "lat": payload.lat, "lng": payload.lng})
     await websocket_manager.publish_dashboard_event("incident_created", {"incident_id": str(incident.id), "priority": priority_label, "lat": payload.lat, "lng": payload.lng})
 
-<<<<<<< HEAD
     # Bystander mode safety warning.
     message = "SOS received. Help dispatch has started."
     is_bystander = payload.bystander_mode or payload.source == "bystander"
@@ -87,17 +75,12 @@ async def trigger_sos(payload: SOSTrigger, db: AsyncSession = Depends(get_db), c
             "responders reach and identify them faster."
         )
 
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     return SOSResponse(
         incident_id=incident.id,
         priority=priority_label,
         triage_confidence=confidence,
         estimated_response_time=response_eta(priority_label),
-<<<<<<< HEAD
         message=message,
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     )
 
 
@@ -148,7 +131,6 @@ async def sms_fallback_payload(
         if phone and phone not in numbers:
             numbers.append(phone)
     maps_url = f"https://maps.google.com/?q={lat},{lng}"
-<<<<<<< HEAD
     private_profile = await load_private_profile(db, current_user)
     medical = ", ".join(
         part
@@ -159,9 +141,6 @@ async def sms_fallback_payload(
         ]
         if part
     )
-=======
-    medical = ", ".join(part for part in [current_user.blood_group, current_user.medical_conditions, current_user.allergies] if part)
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     message = f"RoadSoS OFFLINE SOS. Need help at {maps_url}. User: {current_user.name}, phone {current_user.phone}. Medical: {medical or 'not provided'}."
     return SMSFallbackPayload(sms_to=numbers[:5], message=message[:480], lat=lat, lng=lng, maps_url=maps_url)
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -14,11 +14,23 @@ from app.models.user import User
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+ALLOWED_AUDIO_TYPES = {
+    "application/octet-stream",
+    "audio/m4a",
+    "audio/mp4",
+    "audio/mpeg",
+    "audio/ogg",
+    "audio/wav",
+    "audio/webm",
+    "audio/x-m4a",
+}
+
+
 @router.post("/voice")
 async def voice_sos(
     audio: UploadFile = File(...),
-    lat: float = 0.0,
-    lng: float = 0.0,
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -41,38 +53,29 @@ async def voice_sos(
             "transcription": None
         }
 
-    # Restrict file size (e.g., max 1MB for a short audio clip)
-    content = await audio.read()
-    if len(content) > 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Audio file too large. Max 1MB.")
+    if audio.content_type and audio.content_type.lower() not in ALLOWED_AUDIO_TYPES:
+        raise HTTPException(status_code=415, detail="Unsupported audio content type")
+
+    content = await audio.read(settings.MAX_UPLOAD_BYTES + 1)
+    if len(content) > settings.MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"Audio file too large. Max {settings.MAX_UPLOAD_BYTES} bytes.")
+    if not content:
+        raise HTTPException(status_code=400, detail="Audio file is empty")
         
     try:
         import groq
         client = groq.AsyncGroq(api_key=settings.GROQ_API_KEY)
-        
-        # We must write the bytes to a temp file or file-like object because 
-        # the Groq client expects a file tuple (filename, file_obj)
-        import tempfile
-        import os
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".m4a") as tmp:
-            tmp.write(content)
-            tmp_path = tmp.name
+
+        transcription = await client.audio.transcriptions.create(
+            file=("voice_sos.m4a", content),
+            model="whisper-large-v3-turbo",
+            prompt="Emergency rescue SOS call. Car crash, accident, bleeding, help.",
+            response_format="text",
+            temperature=0.0
+        )
             
-        try:
-            with open(tmp_path, "rb") as file_obj:
-                transcription = await client.audio.transcriptions.create(
-                    file=(audio.filename or "audio.m4a", file_obj.read()),
-                    model="whisper-large-v3-turbo",
-                    prompt="Emergency rescue SOS call. Car crash, accident, bleeding, help.",
-                    response_format="text",
-                    temperature=0.0
-                )
-        finally:
-            os.remove(tmp_path)
-            
-        transcribed_text = str(transcription).strip()
-        logger.info(f"Voice SOS transcribed: '{transcribed_text}'")
+        transcribed_text = str(transcription).strip()[:1000]
+        logger.info("Voice SOS transcribed successfully; chars=%s", len(transcribed_text))
         
         # We now feed this transcribed text into the bundle/classifier
         from app.schemas.sos import SOSTrigger

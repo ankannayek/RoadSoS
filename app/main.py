@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-<<<<<<< HEAD
 import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy import text
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -20,23 +20,11 @@ from app.db.session import AsyncSessionLocal, engine
 from app.services.cache import cache
 from app.services import escalation as _escalation  # noqa: F401 - registers durable queue handler
 from app.services import overpass as _overpass # noqa: F401 - registers overpass queue handler
+from app.services import supergraph as _supergraph # noqa: F401 - registers mci_dbscan queue handler
 from app.services.db_ping import ping_db_forever
 from app.services.event_bus import event_bus
 from app.services.notifications import notification_hub
-=======
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-
-from app import models  # noqa: F401
-from app.api import auth, dashboard, data_ingestion, feedback, helper, rag_admin, services, sos, user, volunteer
-from app.core.config import settings
-from app.db.session import AsyncSessionLocal, engine
-from app.services import escalation as _escalation  # noqa: F401 - registers durable queue handler
-from app.services.db_ping import ping_db_forever
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 from app.services.rate_limiter import RateLimitMiddleware
 from app.services.task_queue import task_queue
 
@@ -46,43 +34,29 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-<<<<<<< HEAD
     settings.validate_startup_configuration()
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     async with AsyncSessionLocal() as db:
         await db.execute(text("SELECT 1"))
     ping_task = asyncio.create_task(ping_db_forever(), name="db-ping")
     worker_task = asyncio.create_task(task_queue.run_worker_forever(), name="task-worker")
     yield
-<<<<<<< HEAD
     # Shutdown: close shared httpx client in notification hub.
     await notification_hub.close()
     await task_queue.stop()
     ping_task.cancel()
     worker_task.cancel()
     await asyncio.gather(ping_task, worker_task, return_exceptions=True)
-=======
-    await task_queue.stop()
-    ping_task.cancel()
-    worker_task.cancel()
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     await engine.dispose()
 
 
 app = FastAPI(
     title=settings.APP_NAME,
-<<<<<<< HEAD
     description="Scalable FastAPI backend for RoadSoS: Offline-First Golden Hour Rescue Engine.",
-=======
-    description="Scalable FastAPI backend for RoadSoS: JWT auth, atomic SOS, PostGIS matching, durable escalation, provider notifications, WebSocket status, judge dashboard, feedback re-ranking, data ingestion, and Helper Bot RAG.",
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     version=settings.API_VERSION,
     lifespan=lifespan,
 )
 
-<<<<<<< HEAD
-MAX_BODY_SIZE = 1 * 1024 * 1024  # 1 MB
+MAX_BODY_SIZE = max(settings.MAX_UPLOAD_BYTES + 64 * 1024, 1 * 1024 * 1024)
 
 
 # ---------------------------------------------------------------------------
@@ -100,22 +74,39 @@ async def request_id_middleware(request: Request, call_next):
 
 
 @app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+    response.headers.setdefault("Cache-Control", "no-store")
+    if settings.is_production:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
+
+
+@app.middleware("http")
 async def limit_request_body(request: Request, call_next):
     content_length = request.headers.get("content-length")
-    if content_length and int(content_length) > MAX_BODY_SIZE:
-        return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+    if content_length:
+        try:
+            length = int(content_length)
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length"})
+        if length > MAX_BODY_SIZE:
+            return JSONResponse(status_code=413, content={"detail": "Request body too large"})
     return await call_next(request)
 
 
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
+if settings.ALLOWED_HOSTS != ["*"]:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-<<<<<<< HEAD
     allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"],
 )
 
@@ -145,22 +136,13 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
-
-=======
-    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
-)
-
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(user.router, prefix="/users", tags=["Users"])
 app.include_router(volunteer.router, prefix="/volunteers", tags=["Volunteers"])
 app.include_router(sos.router, prefix="/sos", tags=["SOS"])
-<<<<<<< HEAD
 app.include_router(bundle.router, prefix="/emergency", tags=["Golden Hour Engine"])
 app.include_router(relay.router, prefix="/emergency", tags=["Mesh Relay"])
 app.include_router(voice.router, prefix="/emergency", tags=["Voice SOS"])
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 app.include_router(helper.router, prefix="/helper", tags=["Helper Bot RAG"])
 app.include_router(feedback.router, prefix="/feedback", tags=["Feedback"])
 app.include_router(services.router, prefix="/services", tags=["Emergency Services"])
@@ -169,7 +151,6 @@ app.include_router(dashboard.router, prefix="/dashboard", tags=["Judge Dashboard
 app.include_router(data_ingestion.router, prefix="/data-ingestion", tags=["Multi-source Data Ingestion"])
 
 
-<<<<<<< HEAD
 # ---------------------------------------------------------------------------
 # Health endpoints
 # ---------------------------------------------------------------------------
@@ -177,68 +158,3 @@ app.include_router(data_ingestion.router, prefix="/data-ingestion", tags=["Multi
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": settings.API_VERSION, "environment": settings.ENVIRONMENT}
-
-
-@app.get("/health/live")
-async def live():
-    return {"status": "ok", "version": settings.API_VERSION}
-
-
-@app.get("/health/ready")
-async def ready():
-    checks: dict[str, dict[str, object]] = {}
-
-    try:
-        async with AsyncSessionLocal() as db:
-            await db.execute(text("SELECT 1"))
-        checks["database"] = {"ok": True}
-    except Exception as exc:
-        checks["database"] = {"ok": False, "error": str(exc)[:300]}
-
-    try:
-        checks["cache"] = {"ok": await cache.ping()}
-    except Exception as exc:
-        checks["cache"] = {"ok": False, "error": str(exc)[:300]}
-
-    try:
-        checks["event_bus"] = {"ok": await event_bus.ping()}
-    except Exception as exc:
-        checks["event_bus"] = {"ok": False, "error": str(exc)[:300]}
-
-    checks["queue"] = {"ok": settings.TASK_QUEUE_BACKEND == "database", "backend": settings.TASK_QUEUE_BACKEND}
-    fcm_errors = settings.fcm_service_account_errors()
-    checks["fcm"] = {
-        "ok": (settings.has_fcm_config and not fcm_errors) or not settings.is_production,
-        "configured": settings.has_fcm_config,
-        "errors": fcm_errors,
-    }
-    checks["twilio"] = {"ok": settings.has_twilio_config or not settings.is_production, "configured": settings.has_twilio_config}
-    checks["field_encryption"] = {"ok": settings.has_field_encryption or not settings.is_production}
-    checks["rag_embedding"] = {
-        "ok": settings.RAG_EMBEDDING_PROVIDER != "gemini" or bool(settings.GEMINI_API_KEY) or not settings.is_production,
-        "provider": settings.RAG_EMBEDDING_PROVIDER,
-    }
-    checks["rag_llm"] = {
-        "ok": (not settings.RAG_LLM_ENABLED)
-        or not settings.is_production
-        or settings.RAG_LLM_PROVIDER == "extractive"
-        or bool(settings.GROQ_API_KEY or settings.GEMINI_API_KEY),
-        "provider": settings.RAG_LLM_PROVIDER,
-    }
-
-    production_errors = settings.production_config_errors()
-    if production_errors:
-        checks["production_config"] = {"ok": False, "errors": production_errors}
-    else:
-        checks["production_config"] = {"ok": True}
-
-    ok = all(bool(check.get("ok")) for check in checks.values())
-    payload = {"status": "ready" if ok else "not_ready", "checks": checks}
-    if ok:
-        return payload
-    return JSONResponse(payload, status_code=503)
-=======
-@app.get("/health")
-async def health():
-    return {"status": "ok", "version": settings.API_VERSION, "environment": settings.ENVIRONMENT}
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0

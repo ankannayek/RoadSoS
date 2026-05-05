@@ -13,10 +13,7 @@ class BackgroundJob(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_type = Column(String(80), nullable=False, index=True)
-<<<<<<< HEAD
     dedupe_key = Column(String(160), nullable=True, index=True)
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     payload_json = Column(JSONB, nullable=False, default=dict)
     status = Column(String(30), nullable=False, default="pending", index=True)
     attempts = Column(Integer, nullable=False, default=0)

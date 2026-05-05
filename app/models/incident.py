@@ -52,11 +52,10 @@ class Incident(Base):
     lng = Column(Float, nullable=False)
     location = Column(Geography(geometry_type="POINT", srid=4326), nullable=True)
     status = Column(Enum(IncidentStatus, name="incidentstatus"), default=IncidentStatus.ACTIVE, nullable=False, index=True)
-<<<<<<< HEAD
     accepted_responder_id = Column(UUID(as_uuid=True), ForeignKey("volunteers.id", ondelete="SET NULL"), nullable=True)
-=======
-    accepted_responder_id = Column(UUID(as_uuid=True), nullable=True)
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
+    cluster_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    is_mci = Column(Boolean, nullable=False, default=False, index=True)
+    is_mci_coordinator = Column(Boolean, nullable=False, default=False)
     metadata_json = Column(JSONB, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -80,11 +79,7 @@ class IncidentResponderAttempt(Base):
     incident_id = Column(UUID(as_uuid=True), ForeignKey("incidents.id", ondelete="CASCADE"), nullable=False, index=True)
     responder_type = Column(String(30), nullable=False)  # volunteer | service | contact | dashboard
     responder_id = Column(UUID(as_uuid=True), nullable=True)
-<<<<<<< HEAD
-    channel = Column(String(30), nullable=False)  # fcm | sms | websocket | dashboard | app
-=======
-    channel = Column(String(30), nullable=False)  # fcm | whatsapp | sms | websocket | dashboard
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
+    channel = Column(String(30), nullable=False)  # fcm | websocket | dashboard | app
     tier = Column(String(20), nullable=False)
     status = Column(String(30), nullable=False, default="queued")
     payload = Column(JSONB, nullable=False, default=dict)

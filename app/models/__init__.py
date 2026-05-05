@@ -6,10 +6,7 @@ from app.models.feedback import Feedback
 from app.models.rag import RAGSource, RAGChunk
 from app.models.notification import NotificationLog
 from app.models.job import BackgroundJob
-<<<<<<< HEAD
 from app.models.private_profile import UserPrivateProfile
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 __all__ = [
     "User",
@@ -26,8 +23,5 @@ __all__ = [
     "RAGChunk",
     "NotificationLog",
     "BackgroundJob",
-<<<<<<< HEAD
     "UserPrivateProfile",
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 ]

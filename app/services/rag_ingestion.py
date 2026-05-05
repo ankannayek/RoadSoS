@@ -3,10 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 import re
-<<<<<<< HEAD
 import asyncio
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, Sequence
@@ -70,11 +67,7 @@ class SemanticChunker:
 class EmbeddingProvider(Protocol):
     model_name: str
 
-<<<<<<< HEAD
     async def embed(self, text_value: str, *, retry: bool = False) -> list[float]:
-=======
-    async def embed(self, text_value: str) -> list[float]:
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
         ...
 
 
@@ -84,11 +77,7 @@ class HashingEmbeddingProvider:
     def __init__(self, dim: int = settings.RAG_EMBEDDING_DIM) -> None:
         self.dim = dim
 
-<<<<<<< HEAD
     async def embed(self, text_value: str, *, retry: bool = False) -> list[float]:
-=======
-    async def embed(self, text_value: str) -> list[float]:
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
         vector = [0.0] * self.dim
         for token in TOKEN_RE.findall(text_value.lower()):
             digest = hashlib.sha256(token.encode("utf-8")).digest()
@@ -99,7 +88,6 @@ class HashingEmbeddingProvider:
         return [round(v / norm, 6) for v in vector]
 
 
-<<<<<<< HEAD
 class GeminiEmbeddingProvider:
     def __init__(self) -> None:
         if not settings.GEMINI_API_KEY:
@@ -136,30 +124,6 @@ class GeminiEmbeddingProvider:
 def build_embedding_provider() -> EmbeddingProvider:
     if settings.RAG_EMBEDDING_PROVIDER.lower() == "gemini" and settings.GEMINI_API_KEY:
         return GeminiEmbeddingProvider()
-=======
-class OpenAIEmbeddingProvider:
-    def __init__(self) -> None:
-        if not settings.OPENAI_API_KEY:
-            raise RuntimeError("OPENAI_API_KEY is required for OpenAI embeddings")
-        self.model_name = settings.OPENAI_EMBEDDING_MODEL
-
-    async def embed(self, text_value: str) -> list[float]:
-        body = {"model": settings.OPENAI_EMBEDDING_MODEL, "input": text_value, "dimensions": settings.RAG_EMBEDDING_DIM}
-        async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/embeddings",
-                headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
-                json=body,
-            )
-            response.raise_for_status()
-            data = response.json()
-            return [float(v) for v in data["data"][0]["embedding"]]
-
-
-def build_embedding_provider() -> EmbeddingProvider:
-    if settings.RAG_EMBEDDING_PROVIDER.lower() == "openai" and settings.OPENAI_API_KEY:
-        return OpenAIEmbeddingProvider()
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     return HashingEmbeddingProvider()
 
 
@@ -190,11 +154,7 @@ class RAGIngestionPipeline:
         source_id = source_id_result.scalar_one()
         await db.execute(text("DELETE FROM rag_chunks WHERE source_id = :source_id"), {"source_id": source_id})
         for chunk in chunks:
-<<<<<<< HEAD
             embedding = vector_literal(await self.embedding_provider.embed(chunk.text, retry=True))
-=======
-            embedding = vector_literal(await self.embedding_provider.embed(chunk.text))
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
             await db.execute(
                 text(
                     """

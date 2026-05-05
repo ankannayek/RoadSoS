@@ -23,15 +23,43 @@ class Cache:
     async def delete(self, key: str) -> None:
         raise NotImplementedError
 
-<<<<<<< HEAD
     async def increment_window(self, key: str, ttl_seconds: int) -> int:
         raise NotImplementedError
 
     async def ping(self) -> bool:
         raise NotImplementedError
 
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
+
+class RedisCache(Cache):
+    def __init__(self, url: str) -> None:
+        if redis is None:
+            raise RuntimeError("redis package is not installed")
+        self.client = redis.from_url(url, decode_responses=True)
+
+    async def get(self, key: str) -> Optional[Any]:
+        raw = await self.client.get(key)
+        if raw is None:
+            return None
+        return json.loads(raw)
+
+    async def set(self, key: str, value: Any, ttl_seconds: int = 300) -> None:
+        await self.client.set(key, json.dumps(value, default=str), ex=ttl_seconds)
+
+    async def delete(self, key: str) -> None:
+        await self.client.delete(key)
+
+    async def increment_window(self, key: str, ttl_seconds: int) -> int:
+        script = """
+        local current = redis.call('INCR', KEYS[1])
+        if current == 1 then
+            redis.call('EXPIRE', KEYS[1], ARGV[1])
+        end
+        return current
+        """
+        return int(await self.client.eval(script, 1, key, int(ttl_seconds)))
+
+    async def ping(self) -> bool:
+        return bool(await self.client.ping())
 
 class InMemoryCache(Cache):
     def __init__(self) -> None:
@@ -57,7 +85,6 @@ class InMemoryCache(Cache):
         async with self._lock:
             self._data.pop(key, None)
 
-<<<<<<< HEAD
     async def increment_window(self, key: str, ttl_seconds: int) -> int:
         async with self._lock:
             expires_at, value = self._data.get(key, (time.time() + ttl_seconds, 0))
@@ -70,60 +97,16 @@ class InMemoryCache(Cache):
     async def ping(self) -> bool:
         return True
 
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
-
-class RedisCache(Cache):
-    def __init__(self, url: str) -> None:
-        if redis is None:
-            raise RuntimeError("redis package is not installed")
-        self.client = redis.from_url(url, decode_responses=True)
-
-    async def get(self, key: str) -> Optional[Any]:
-        raw = await self.client.get(key)
-        if raw is None:
-            return None
-        return json.loads(raw)
-
-    async def set(self, key: str, value: Any, ttl_seconds: int = 300) -> None:
-        await self.client.set(key, json.dumps(value, default=str), ex=ttl_seconds)
-
-    async def delete(self, key: str) -> None:
-        await self.client.delete(key)
-
-<<<<<<< HEAD
-    async def increment_window(self, key: str, ttl_seconds: int) -> int:
-        script = """
-        local current = redis.call('INCR', KEYS[1])
-        if current == 1 then
-            redis.call('EXPIRE', KEYS[1], ARGV[1])
-        end
-        return current
-        """
-        return int(await self.client.eval(script, 1, key, int(ttl_seconds)))
-
-    async def ping(self) -> bool:
-        return bool(await self.client.ping())
-
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
-
 def build_cache() -> Cache:
     if settings.REDIS_URL:
         try:
             return RedisCache(settings.REDIS_URL)
-<<<<<<< HEAD
         except Exception as exc:
             if settings.is_production and settings.REQUIRE_REDIS_IN_PRODUCTION:
                 raise RuntimeError("Redis cache is required in production") from exc
             return InMemoryCache()
     if settings.is_production and settings.REQUIRE_REDIS_IN_PRODUCTION:
         raise RuntimeError("REDIS_URL is required in production when REQUIRE_REDIS_IN_PRODUCTION=true")
-=======
-        except Exception:
-            # Local fallback lets development continue; production should alert.
-            return InMemoryCache()
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     return InMemoryCache()
 
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-<<<<<<< HEAD
 import asyncio
 import contextlib
 import logging
@@ -88,27 +87,6 @@ class WebSocketManager:
             with contextlib.suppress(asyncio.CancelledError):
                 await heartbeat_task
             self._dashboard_connections = max(0, self._dashboard_connections - 1)
-=======
-from typing import Any, Dict
-
-from fastapi import WebSocket
-
-from app.services.event_bus import event_bus
-
-
-class WebSocketManager:
-    async def stream_incident(self, websocket: WebSocket, incident_id: str) -> None:
-        await websocket.accept()
-        await websocket.send_json({"type": "connected", "stream": "incident", "incident_id": incident_id})
-        async for event in event_bus.subscribe(f"incident:{incident_id}"):
-            await websocket.send_json(event)
-
-    async def stream_dashboard(self, websocket: WebSocket) -> None:
-        await websocket.accept()
-        await websocket.send_json({"type": "connected", "stream": "dashboard"})
-        async for event in event_bus.subscribe("dashboard:incidents"):
-            await websocket.send_json(event)
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
     async def publish_incident_event(self, incident_id: str, event_type: str, payload: Dict[str, Any]) -> None:
         event = {"type": event_type, "incident_id": incident_id, "payload": payload}
@@ -117,7 +95,6 @@ class WebSocketManager:
     async def publish_dashboard_event(self, event_type: str, payload: Dict[str, Any]) -> None:
         await event_bus.publish("dashboard:incidents", {"type": event_type, "payload": payload})
 
-<<<<<<< HEAD
     @property
     def active_connections(self) -> Dict[str, int]:
         return {
@@ -125,7 +102,5 @@ class WebSocketManager:
             "dashboard": self._dashboard_connections,
         }
 
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 websocket_manager = WebSocketManager()

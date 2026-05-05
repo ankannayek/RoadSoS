@@ -15,17 +15,17 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+pwd_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto", bcrypt__rounds=12)
 bearer_scheme = HTTPBearer(auto_error=True)
 optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password[:72], hashed_password)
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password[:72])
+    return pwd_context.hash(password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -36,6 +36,12 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def decode_access_token(token: str) -> dict:
+    if len(token) > 4096:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except JWTError as exc:

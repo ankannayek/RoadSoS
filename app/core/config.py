@@ -1,19 +1,15 @@
 from __future__ import annotations
 
-<<<<<<< HEAD
 import base64
 import json
 from functools import lru_cache
 from typing import List, Optional
 
 from pydantic import Field, field_validator
-=======
-from functools import lru_cache
-from typing import List, Optional
-
-from pydantic import AnyHttpUrl, Field, field_validator
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Explicit sentinel rejected in production.
+DEFAULT_INSECURE_SECRET = "change-this-in-production"  # nosec B105
 
 
 class Settings(BaseSettings):
@@ -23,11 +19,7 @@ class Settings(BaseSettings):
     provider credentials. Use .env locally and managed secrets in deployment.
     """
 
-<<<<<<< HEAD
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore")
-=======
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True)
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
     APP_NAME: str = "RoadSoS Backend"
     ENVIRONMENT: str = "development"
@@ -35,17 +27,19 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/roadsos"
-<<<<<<< HEAD
     TEST_DATABASE_URL: Optional[str] = None
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     REDIS_URL: Optional[str] = None
 
-    SECRET_KEY: str = "change-this-in-production"
+    SECRET_KEY: str = DEFAULT_INSECURE_SECRET
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+    MESH_RELAY_SIGNING_KEY: Optional[str] = None
 
     CORS_ORIGINS: List[str] = Field(default_factory=lambda: ["http://localhost:3000", "http://localhost:8080"])
+    ALLOWED_HOSTS: List[str] = Field(default_factory=lambda: ["*"])
+    TRUST_PROXY_HEADERS: bool = False
+    MAX_UPLOAD_BYTES: int = 1 * 1024 * 1024
+    MAX_MESH_PAYLOAD_BYTES: int = 4096
 
     DEFAULT_RADIUS_KM: int = 10
     MAX_RADIUS_KM: int = 50
@@ -57,6 +51,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_AUTH_PER_MINUTE: int = 10
     RATE_LIMIT_SOS_PER_MINUTE: int = 3
     RATE_LIMIT_RAG_PER_MINUTE: int = 20
+    RATE_LIMIT_RELAY_PER_MINUTE: int = 20
+    RATE_LIMIT_VOICE_PER_MINUTE: int = 5
 
     # Escalation ladder. Demo mode can shorten these values.
     ESCALATION_TIER1_SECONDS: int = 90
@@ -66,20 +62,12 @@ class Settings(BaseSettings):
 
     # Notification providers. Set credentials in managed secrets.
     FCM_PROJECT_ID: Optional[str] = None
-<<<<<<< HEAD
-=======
-    FCM_ACCESS_TOKEN: Optional[str] = None
-    WHATSAPP_TOKEN: Optional[str] = None
-    WHATSAPP_PHONE_NUMBER_ID: Optional[str] = None
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
+
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_FROM_NUMBER: Optional[str] = None
     SMS_PROVIDER_API_KEY: Optional[str] = None  # legacy/generic fallback
-<<<<<<< HEAD
     FCM_SERVICE_ACCOUNT_JSON: Optional[str] = None
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     SMS_FALLBACK_ENABLED: bool = True
     SMS_FALLBACK_NUMBER: str = "112"
 
@@ -87,7 +75,6 @@ class Settings(BaseSettings):
     TASK_QUEUE_BACKEND: str = "database"  # database | in_memory
     TASK_WORKER_POLL_SECONDS: float = 1.5
     TASK_LOCK_TIMEOUT_SECONDS: int = 900
-<<<<<<< HEAD
     TASK_WORKER_CONCURRENCY: int = 4
 
     # Production resilience.
@@ -96,18 +83,12 @@ class Settings(BaseSettings):
     FIELD_ENCRYPTION_REQUIRED_IN_PRODUCTION: bool = True
     ADMIN_BOOTSTRAP_ENABLED: bool = False
     ADMIN_BOOTSTRAP_TOKEN: Optional[str] = None
-=======
-
-    # Production resilience.
-    REQUIRE_REDIS_IN_PRODUCTION: bool = False
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
     # RAG settings.
     RAG_TOP_K_SEMANTIC: int = 8
     RAG_TOP_K_KEYWORD: int = 8
     RAG_MAX_CONTEXT_CHARS: int = 6000
     RAG_MIN_CONFIDENCE: float = 0.18
-<<<<<<< HEAD
     RAG_EMBEDDING_DIM: int = 768
     RAG_EMBEDDING_PROVIDER: str = "hashing"  # hashing | gemini
     RAG_LLM_PROVIDER: str = "extractive"  # extractive | gemini | groq
@@ -121,34 +102,27 @@ class Settings(BaseSettings):
     GEMINI_CHAT_MODEL: str = "gemini-2.5-flash-lite"
     GROQ_API_KEY: Optional[str] = None
     GROQ_CHAT_MODEL: str = "llama-3.3-70b-versatile"
-=======
-    RAG_EMBEDDING_DIM: int = 384
-    RAG_EMBEDDING_PROVIDER: str = "hashing"  # hashing | openai
-    RAG_LLM_PROVIDER: str = "extractive"  # extractive | openai
-    RAG_LLM_ENABLED: bool = False
-    RAG_ALLOW_UNGROUNDED_ANSWERS: bool = False
-    OPENAI_API_KEY: Optional[str] = None
-    OPENAI_CHAT_MODEL: str = "gpt-4o-mini"
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
-    @field_validator("CORS_ORIGINS", mode="before")
+    @field_validator("CORS_ORIGINS", "ALLOWED_HOSTS", mode="before")
     @classmethod
-    def parse_cors_origins(cls, value):
+    def parse_csv_list(cls, value):
         if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
+            return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
-<<<<<<< HEAD
+    @field_validator("ALGORITHM", mode="before")
+    @classmethod
+    def validate_jwt_algorithm(cls, value):
+        if value not in {"HS256", "HS384", "HS512"}:
+            raise ValueError("ALGORITHM must be one of HS256, HS384, HS512")
+        return value
+
     @field_validator("RAG_EMBEDDING_PROVIDER", "RAG_LLM_PROVIDER", "TASK_QUEUE_BACKEND", mode="before")
     @classmethod
     def lower_string_setting(cls, value):
         if isinstance(value, str):
             return value.strip().lower()
         return value
-
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() in {"prod", "production"}
@@ -158,7 +132,6 @@ class Settings(BaseSettings):
         lowered = self.DATABASE_URL.lower()
         return "neon.tech" in lowered or "sslmode=require" in lowered
 
-<<<<<<< HEAD
     @property
     def sqlalchemy_sync_database_url(self) -> str:
         url = self.DATABASE_URL
@@ -190,7 +163,7 @@ class Settings(BaseSettings):
             parsed = json.loads(self.FCM_SERVICE_ACCOUNT_JSON)
         except json.JSONDecodeError:
             try:
-                parsed = json.loads(base64.b64decode(self.FCM_SERVICE_ACCOUNT_JSON).decode("utf-8"))
+                parsed = json.loads(base64.b64decode(self.FCM_SERVICE_ACCOUNT_JSON, validate=True).decode("utf-8"))
             except Exception:
                 return ["FCM_SERVICE_ACCOUNT_JSON must be raw JSON or base64 encoded JSON"]
         missing = [key for key in ("client_email", "private_key") if not parsed.get(key)]
@@ -204,8 +177,10 @@ class Settings(BaseSettings):
         if not self.is_production:
             return []
         errors: list[str] = []
-        if self.SECRET_KEY == "change-this-in-production" or len(self.SECRET_KEY) < 48:
+        if self.SECRET_KEY == DEFAULT_INSECURE_SECRET or len(self.SECRET_KEY) < 48:
             errors.append("SECRET_KEY must be a non-default random value of at least 48 characters")
+        if not self.MESH_RELAY_SIGNING_KEY or len(self.MESH_RELAY_SIGNING_KEY) < 48:
+            errors.append("MESH_RELAY_SIGNING_KEY must be a separate random value of at least 48 characters")
         if not self.DATABASE_URL.startswith("postgresql+asyncpg://"):
             errors.append("DATABASE_URL must use the postgresql+asyncpg:// driver")
         if self.REQUIRE_REDIS_IN_PRODUCTION and not self.has_redis:
@@ -216,6 +191,10 @@ class Settings(BaseSettings):
             errors.append("TASK_QUEUE_BACKEND must be database in production")
         if any(origin.startswith("http://localhost") or origin.startswith("http://127.0.0.1") for origin in self.CORS_ORIGINS):
             errors.append("CORS_ORIGINS must not include localhost origins in production")
+        if "*" in self.CORS_ORIGINS:
+            errors.append("CORS_ORIGINS must not include '*' when credentials are enabled")
+        if "*" in self.ALLOWED_HOSTS:
+            errors.append("ALLOWED_HOSTS must be explicitly configured in production")
         if self.FIELD_ENCRYPTION_REQUIRED_IN_PRODUCTION and not self.has_field_encryption:
             errors.append("FIELD_ENCRYPTION_KEYS is required for encrypted medical profile storage")
         if not self.has_fcm_config:
@@ -239,9 +218,6 @@ class Settings(BaseSettings):
         errors = self.production_config_errors()
         if errors:
             raise RuntimeError("Invalid production configuration: " + "; ".join(errors))
-
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 @lru_cache
 def get_settings() -> Settings:

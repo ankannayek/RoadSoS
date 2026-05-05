@@ -17,6 +17,14 @@ from app.services.geo import find_nearby_services
 from app.services.offline_payload import generate_offline_payload
 from app.services.private_profile import load_private_profile
 from app.services.task_queue import task_queue
+from app.services.mci import (
+    get_mci_threshold,
+    get_sos_ids_in_geohash,
+    is_mci_candidate_priority,
+    mci_geohash_cell,
+    register_sos_in_geohash,
+)
+from app.services.websocket_manager import websocket_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -106,6 +114,7 @@ async def get_emergency_bundle(
     )
     
     all_services = medical_services + safety_services + vehicle_services
+    needs_commit = False
 
     # 3. If no local services found, we would ideally trigger a background Overpass fetch here.
     # We use task_queue to queue it asynchronously so we don't block the bundle return.
@@ -116,6 +125,7 @@ async def get_emergency_bundle(
             {"lat": payload.lat, "lng": payload.lng},
             dedupe_key=f"seed_overpass_{round(payload.lat, 2)}_{round(payload.lng, 2)}"
         )
+        needs_commit = True
 
     # 4. Fetch User Contacts
     private_profile = await load_private_profile(db, current_user)
@@ -159,11 +169,55 @@ async def get_emergency_bundle(
         await db.commit()
         await db.refresh(incident)
 
-    # 6. Generate Action Plan & Risk Index
     nearest_dist = all_services[0]['distance_km'] if all_services else 15.0
     risk_index = _calculate_golden_hour_risk(priority_label, nearest_dist)
     action_plan = _generate_action_plan(priority_label, all_services)
     
+    # 7. MCI Hot Path Detection. P4 roadside assistance is intentionally excluded
+    # to avoid grouping non-casualty breakdowns with true emergency calls.
+    mci_threshold = await get_mci_threshold()
+    mci_cell = mci_geohash_cell(payload.lat, payload.lng)
+    cluster_size = 0
+    mci_pending = False
+    if is_mci_candidate_priority(priority_label):
+        cluster_size = await register_sos_in_geohash(payload.lat, payload.lng, str(incident.id), cell=mci_cell)
+        mci_pending = cluster_size >= mci_threshold
+
+    if mci_pending:
+        incident_metadata = dict(incident.metadata_json or {})
+        incident_metadata.update({"mci_pending": True, "mci_cell": mci_cell, "mci_hot_path_count": cluster_size})
+        incident.metadata_json = incident_metadata
+        # Enqueue background PostGIS verification
+        await task_queue.enqueue(
+            db,
+            "mci_dbscan",
+            {"lat": payload.lat, "lng": payload.lng, "cell": mci_cell, "trigger_incident_id": str(incident.id)},
+            dedupe_key=f"mci_dbscan_{mci_cell}"
+        )
+        needs_commit = True
+        provisional_payload = {
+            "cell": mci_cell,
+            "hot_path_count": cluster_size,
+            "threshold": mci_threshold,
+            "message": "Multiple casualties suspected nearby. Stay put unless in immediate danger.",
+        }
+        provisional_incident_ids = await get_sos_ids_in_geohash(mci_cell)
+        for provisional_incident_id in provisional_incident_ids:
+            await websocket_manager.publish_incident_event(provisional_incident_id, "mci_provisional", provisional_payload)
+        await websocket_manager.publish_dashboard_event(
+            "mci_provisional",
+            {"incident_ids": provisional_incident_ids, **provisional_payload},
+        )
+        action_plan.insert(0, {
+            "step": 0,
+            "action": "Multiple casualties suspected nearby. DO NOT MOVE unless in immediate danger. Wait for unified dispatch.",
+            "eta": "Immediate",
+            "why": "Mass Casualty Incident (MCI) protocol engaged to prioritize critical resources."
+        })
+
+    if needs_commit:
+        await db.commit()
+
     # 7. Generate Offline Payload
     offline_payload = generate_offline_payload(incident, all_services, contacts)
 
@@ -179,5 +233,12 @@ async def get_emergency_bundle(
         "contacts": {"user_emergency": [c.get("name") for c in contacts]},
         "offline_payload": offline_payload,
         "country_fallback": fallback_numbers,
-        "mesh_relay_status": "standby"
+        "mesh_relay_status": "standby",
+        "mci_pending": mci_pending,
+        "mci": {
+            "pending": mci_pending,
+            "cell": mci_cell if mci_pending else None,
+            "hot_path_count": cluster_size,
+            "threshold": mci_threshold,
+        },
     }

@@ -26,10 +26,7 @@ class SOSTrigger(BaseModel):
     victim_name: Optional[str] = Field(default=None, max_length=100)
     victim_phone: Optional[str] = Field(default=None, max_length=20)
     sensor_payload: Dict[str, Any] = Field(default_factory=dict)
-<<<<<<< HEAD
     client_reference_id: Optional[str] = Field(default=None, max_length=64, description="Idempotency key")
-=======
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
     @field_validator("description")
     @classmethod
@@ -59,6 +56,9 @@ class IncidentOut(BaseModel):
     lat: float
     lng: float
     status: str
+    cluster_id: Optional[UUID] = None
+    is_mci: bool = False
+    is_mci_coordinator: bool = False
     accepted_responder_id: Optional[UUID] = None
     created_at: datetime
     resolved_at: Optional[datetime] = None

@@ -17,6 +17,9 @@ class DashboardIncident(BaseModel):
     bystander_mode: bool
     lat: float
     lng: float
+    cluster_id: Optional[UUID] = None
+    is_mci: bool = False
+    is_mci_coordinator: bool = False
     description_preview: str
     created_at: datetime
     resolved_at: Optional[datetime] = None

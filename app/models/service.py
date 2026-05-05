@@ -3,11 +3,7 @@ from __future__ import annotations
 import uuid
 
 from geoalchemy2 import Geography
-<<<<<<< HEAD
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, Numeric, String, Text, func
-=======
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, Numeric, String, Text, func
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.db.session import Base
@@ -36,13 +32,8 @@ class ServiceReport(Base):
     __tablename__ = "service_reports"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-<<<<<<< HEAD
     service_id = Column(UUID(as_uuid=True), ForeignKey("emergency_services.id", ondelete="SET NULL"), nullable=True)
     reporter_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-=======
-    service_id = Column(UUID(as_uuid=True), nullable=True)
-    reporter_user_id = Column(UUID(as_uuid=True), nullable=True)
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     name = Column(String(150), nullable=False)
     type = Column(String(30), nullable=False)
     phone = Column(String(20), nullable=True)

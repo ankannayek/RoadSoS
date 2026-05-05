@@ -2,11 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-<<<<<<< HEAD
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
-=======
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, UniqueConstraint, func
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.db.session import Base
@@ -31,11 +27,7 @@ class RAGChunk(Base):
     __table_args__ = (UniqueConstraint("source_id", "chunk_index", name="uq_rag_source_chunk"),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-<<<<<<< HEAD
     source_id = Column(UUID(as_uuid=True), ForeignKey("rag_sources.id", ondelete="CASCADE"), nullable=False, index=True)
-=======
-    source_id = Column(UUID(as_uuid=True), nullable=False, index=True)
->>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     chunk_index = Column(Integer, nullable=False)
     heading = Column(String(255), nullable=True)
     text = Column(Text, nullable=False)
