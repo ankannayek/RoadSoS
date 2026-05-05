@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+<<<<<<< HEAD
 import base64
 import json
 from functools import lru_cache
 from typing import List, Optional
 
 from pydantic import Field, field_validator
+=======
+from functools import lru_cache
+from typing import List, Optional
+
+from pydantic import AnyHttpUrl, Field, field_validator
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,7 +23,11 @@ class Settings(BaseSettings):
     provider credentials. Use .env locally and managed secrets in deployment.
     """
 
+<<<<<<< HEAD
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore")
+=======
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True)
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
     APP_NAME: str = "RoadSoS Backend"
     ENVIRONMENT: str = "development"
@@ -24,7 +35,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/roadsos"
+<<<<<<< HEAD
     TEST_DATABASE_URL: Optional[str] = None
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     REDIS_URL: Optional[str] = None
 
     SECRET_KEY: str = "change-this-in-production"
@@ -52,11 +66,20 @@ class Settings(BaseSettings):
 
     # Notification providers. Set credentials in managed secrets.
     FCM_PROJECT_ID: Optional[str] = None
+<<<<<<< HEAD
+=======
+    FCM_ACCESS_TOKEN: Optional[str] = None
+    WHATSAPP_TOKEN: Optional[str] = None
+    WHATSAPP_PHONE_NUMBER_ID: Optional[str] = None
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_FROM_NUMBER: Optional[str] = None
     SMS_PROVIDER_API_KEY: Optional[str] = None  # legacy/generic fallback
+<<<<<<< HEAD
     FCM_SERVICE_ACCOUNT_JSON: Optional[str] = None
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     SMS_FALLBACK_ENABLED: bool = True
     SMS_FALLBACK_NUMBER: str = "112"
 
@@ -64,6 +87,7 @@ class Settings(BaseSettings):
     TASK_QUEUE_BACKEND: str = "database"  # database | in_memory
     TASK_WORKER_POLL_SECONDS: float = 1.5
     TASK_LOCK_TIMEOUT_SECONDS: int = 900
+<<<<<<< HEAD
     TASK_WORKER_CONCURRENCY: int = 4
 
     # Production resilience.
@@ -72,12 +96,18 @@ class Settings(BaseSettings):
     FIELD_ENCRYPTION_REQUIRED_IN_PRODUCTION: bool = True
     ADMIN_BOOTSTRAP_ENABLED: bool = False
     ADMIN_BOOTSTRAP_TOKEN: Optional[str] = None
+=======
+
+    # Production resilience.
+    REQUIRE_REDIS_IN_PRODUCTION: bool = False
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
     # RAG settings.
     RAG_TOP_K_SEMANTIC: int = 8
     RAG_TOP_K_KEYWORD: int = 8
     RAG_MAX_CONTEXT_CHARS: int = 6000
     RAG_MIN_CONFIDENCE: float = 0.18
+<<<<<<< HEAD
     RAG_EMBEDDING_DIM: int = 768
     RAG_EMBEDDING_PROVIDER: str = "hashing"  # hashing | gemini
     RAG_LLM_PROVIDER: str = "extractive"  # extractive | gemini | groq
@@ -91,6 +121,16 @@ class Settings(BaseSettings):
     GEMINI_CHAT_MODEL: str = "gemini-2.5-flash-lite"
     GROQ_API_KEY: Optional[str] = None
     GROQ_CHAT_MODEL: str = "llama-3.3-70b-versatile"
+=======
+    RAG_EMBEDDING_DIM: int = 384
+    RAG_EMBEDDING_PROVIDER: str = "hashing"  # hashing | openai
+    RAG_LLM_PROVIDER: str = "extractive"  # extractive | openai
+    RAG_LLM_ENABLED: bool = False
+    RAG_ALLOW_UNGROUNDED_ANSWERS: bool = False
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_CHAT_MODEL: str = "gpt-4o-mini"
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -99,6 +139,7 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
 
+<<<<<<< HEAD
     @field_validator("RAG_EMBEDDING_PROVIDER", "RAG_LLM_PROVIDER", "TASK_QUEUE_BACKEND", mode="before")
     @classmethod
     def lower_string_setting(cls, value):
@@ -106,6 +147,8 @@ class Settings(BaseSettings):
             return value.strip().lower()
         return value
 
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() in {"prod", "production"}
@@ -115,6 +158,7 @@ class Settings(BaseSettings):
         lowered = self.DATABASE_URL.lower()
         return "neon.tech" in lowered or "sslmode=require" in lowered
 
+<<<<<<< HEAD
     @property
     def sqlalchemy_sync_database_url(self) -> str:
         url = self.DATABASE_URL
@@ -196,6 +240,8 @@ class Settings(BaseSettings):
         if errors:
             raise RuntimeError("Invalid production configuration: " + "; ".join(errors))
 
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 @lru_cache
 def get_settings() -> Settings:

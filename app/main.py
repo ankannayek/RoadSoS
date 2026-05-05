@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+<<<<<<< HEAD
 import uuid
 from contextlib import asynccontextmanager
 
@@ -22,6 +23,20 @@ from app.services import overpass as _overpass # noqa: F401 - registers overpass
 from app.services.db_ping import ping_db_forever
 from app.services.event_bus import event_bus
 from app.services.notifications import notification_hub
+=======
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+
+from app import models  # noqa: F401
+from app.api import auth, dashboard, data_ingestion, feedback, helper, rag_admin, services, sos, user, volunteer
+from app.core.config import settings
+from app.db.session import AsyncSessionLocal, engine
+from app.services import escalation as _escalation  # noqa: F401 - registers durable queue handler
+from app.services.db_ping import ping_db_forever
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 from app.services.rate_limiter import RateLimitMiddleware
 from app.services.task_queue import task_queue
 
@@ -31,28 +46,42 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+<<<<<<< HEAD
     settings.validate_startup_configuration()
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     async with AsyncSessionLocal() as db:
         await db.execute(text("SELECT 1"))
     ping_task = asyncio.create_task(ping_db_forever(), name="db-ping")
     worker_task = asyncio.create_task(task_queue.run_worker_forever(), name="task-worker")
     yield
+<<<<<<< HEAD
     # Shutdown: close shared httpx client in notification hub.
     await notification_hub.close()
     await task_queue.stop()
     ping_task.cancel()
     worker_task.cancel()
     await asyncio.gather(ping_task, worker_task, return_exceptions=True)
+=======
+    await task_queue.stop()
+    ping_task.cancel()
+    worker_task.cancel()
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     await engine.dispose()
 
 
 app = FastAPI(
     title=settings.APP_NAME,
+<<<<<<< HEAD
     description="Scalable FastAPI backend for RoadSoS: Offline-First Golden Hour Rescue Engine.",
+=======
+    description="Scalable FastAPI backend for RoadSoS: JWT auth, atomic SOS, PostGIS matching, durable escalation, provider notifications, WebSocket status, judge dashboard, feedback re-ranking, data ingestion, and Helper Bot RAG.",
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     version=settings.API_VERSION,
     lifespan=lifespan,
 )
 
+<<<<<<< HEAD
 MAX_BODY_SIZE = 1 * 1024 * 1024  # 1 MB
 
 
@@ -78,12 +107,15 @@ async def limit_request_body(request: Request, call_next):
     return await call_next(request)
 
 
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+<<<<<<< HEAD
     allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"],
 )
 
@@ -114,13 +146,21 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Routers
 # ---------------------------------------------------------------------------
 
+=======
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+)
+
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(user.router, prefix="/users", tags=["Users"])
 app.include_router(volunteer.router, prefix="/volunteers", tags=["Volunteers"])
 app.include_router(sos.router, prefix="/sos", tags=["SOS"])
+<<<<<<< HEAD
 app.include_router(bundle.router, prefix="/emergency", tags=["Golden Hour Engine"])
 app.include_router(relay.router, prefix="/emergency", tags=["Mesh Relay"])
 app.include_router(voice.router, prefix="/emergency", tags=["Voice SOS"])
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 app.include_router(helper.router, prefix="/helper", tags=["Helper Bot RAG"])
 app.include_router(feedback.router, prefix="/feedback", tags=["Feedback"])
 app.include_router(services.router, prefix="/services", tags=["Emergency Services"])
@@ -129,6 +169,7 @@ app.include_router(dashboard.router, prefix="/dashboard", tags=["Judge Dashboard
 app.include_router(data_ingestion.router, prefix="/data-ingestion", tags=["Multi-source Data Ingestion"])
 
 
+<<<<<<< HEAD
 # ---------------------------------------------------------------------------
 # Health endpoints
 # ---------------------------------------------------------------------------
@@ -196,3 +237,8 @@ async def ready():
     if ok:
         return payload
     return JSONResponse(payload, status_code=503)
+=======
+@app.get("/health")
+async def health():
+    return {"status": "ok", "version": settings.API_VERSION, "environment": settings.ENVIRONMENT}
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0

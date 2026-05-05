@@ -130,7 +130,11 @@ async def approve_service_report(db: AsyncSession, report: ServiceReport, confid
     result = await db.execute(
         select(EmergencyService).where(EmergencyService.metadata_json["service_report_id"].astext == str(report.id))
     )
+<<<<<<< HEAD
     service = result.scalar_one()
     report.service_id = service.id
     await db.commit()
     return service
+=======
+    return result.scalar_one()
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0

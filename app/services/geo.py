@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+<<<<<<< HEAD
 from typing import Any, Dict, List, Optional
+=======
+from typing import Dict, List, Optional
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -53,11 +57,14 @@ async def find_nearby_volunteers(
         WHERE v.available = true
           AND v.location IS NOT NULL
           AND ST_DWithin(v.location, origin.point, :radius)
+<<<<<<< HEAD
           AND NOT EXISTS (
             SELECT 1 FROM incidents i
             WHERE i.accepted_responder_id = v.id
               AND i.status IN ('active', 'acknowledged', 'escalated')
           )
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
         ORDER BY v.location <-> origin.point, confidence_score DESC
         LIMIT :limit
         """
@@ -73,6 +80,7 @@ async def find_nearby_services(
     lat: float,
     lng: float,
     db: AsyncSession,
+<<<<<<< HEAD
     radius_km: float = 25.0,
     limit: int = 20,
     types: list[str] | None = None,
@@ -93,6 +101,18 @@ async def find_nearby_services(
 
     query = text(
         f"""
+=======
+    types: Optional[List[str]] = None,
+    radius_km: int | None = None,
+    limit: int = 8,
+) -> List[Dict]:
+    if types is None:
+        types = ["AMBULANCE", "TRAUMA", "HOSPITAL", "POLICE", "FIRE", "TOWING"]
+    radius_meters = _clamp_radius(radius_km or settings.SERVICE_RADIUS_KM) * 1000
+
+    query = text(
+        """
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
         WITH origin AS (
           SELECT ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography AS point
         )
@@ -103,6 +123,7 @@ async def find_nearby_services(
           s.phone,
           s.lat,
           s.lng,
+<<<<<<< HEAD
           s.capacity,
           s.source,
           ROUND((ST_Distance(s.location, origin.point) / 1000)::numeric, 2) AS distance_km,
@@ -170,6 +191,21 @@ async def find_nearby_services(
     # Sort primarily by trust score, secondarily by distance
     ranked_services.sort(key=lambda x: (-x["trust_score"], x["distance_km"]))
     return ranked_services[:limit]
+=======
+          s.confidence_score,
+          s.source,
+          ROUND((ST_Distance(s.location, origin.point) / 1000)::numeric, 3) AS distance_km
+        FROM emergency_services s, origin
+        WHERE s.is_active = true
+          AND s.type = ANY(CAST(:types AS text[]))
+          AND ST_DWithin(s.location, origin.point, :radius)
+        ORDER BY s.location <-> origin.point, s.confidence_score DESC
+        LIMIT :limit
+        """
+    )
+    result = await db.execute(query, {"lat": lat, "lng": lng, "types": types, "radius": radius_meters, "limit": limit})
+    return [dict(row) for row in result.mappings().all()]
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 
 async def get_offline_services_prefetch(lat: float, lng: float, db: AsyncSession, precision: int = 6) -> Dict:

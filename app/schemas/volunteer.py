@@ -38,6 +38,7 @@ class VolunteerOut(BaseModel):
     confidence_score: Optional[float] = None
 
     model_config = {"from_attributes": True}
+<<<<<<< HEAD
 
 
 class VolunteerIncidentResponse(BaseModel):
@@ -50,3 +51,5 @@ class VolunteerIncidentResponseOut(BaseModel):
     incident_id: UUID
     volunteer_id: UUID
     incident_status: str
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0

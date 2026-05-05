@@ -8,7 +8,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+<<<<<<< HEAD
 from app.services.classifier import EMERGENCY_KEYWORDS
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 from app.services.geo import find_nearby_services
 from app.services.llm import grounded_llm_client
 from app.services.rag_ingestion import build_embedding_provider, vector_literal
@@ -21,6 +24,7 @@ SAFETY_NOTICE = (
     "Do not delay professional help."
 )
 
+<<<<<<< HEAD
 SOS_FIRST_PREFIX = (
     "THIS SOUNDS LIKE AN EMERGENCY. TRIGGER SOS OR CALL 112 (or your local "
     "emergency number) NOW. Do not delay; get professional help first. "
@@ -37,6 +41,8 @@ def _detect_emergency_in_query(query: str) -> bool:
     lowered = query.lower()
     return any(keyword in lowered for keyword in EMERGENCY_KEYWORDS)
 
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 @dataclass
 class RetrievedChunk:
@@ -53,8 +59,13 @@ class HybridRAGPipeline:
         self.embedding_provider = build_embedding_provider()
 
     async def _semantic_search(self, db: AsyncSession, query: str, top_k: int) -> list[RetrievedChunk]:
+<<<<<<< HEAD
         try:
             embedding = vector_literal(await self.embedding_provider.embed(query, retry=False))
+=======
+        embedding = vector_literal(await self.embedding_provider.embed(query))
+        try:
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
             result = await db.execute(
                 text(
                     """
@@ -116,6 +127,7 @@ class HybridRAGPipeline:
             context_parts.append(part)
         return context_parts
 
+<<<<<<< HEAD
     async def _compose_grounded_answer(self, query: str, chunks: list[RetrievedChunk], is_emergency_query: bool) -> tuple[str, float]:
         if not chunks:
             base_answer = (
@@ -126,6 +138,15 @@ class HybridRAGPipeline:
                 return SOS_FIRST_PREFIX + base_answer, 0.0
             return base_answer, 0.0
 
+=======
+    async def _compose_grounded_answer(self, query: str, chunks: list[RetrievedChunk]) -> tuple[str, float]:
+        if not chunks:
+            return (
+                "I do not have a reliable grounded answer in the emergency knowledge base for that question. "
+                "Trigger SOS or call local emergency services if anyone may be in danger.",
+                0.0,
+            )
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
         context_parts = self._build_context(chunks)
         context = "\n\n---\n\n".join(context_parts[:6])
         confidence = round(min(0.95, 0.35 + sum(c.score for c in chunks[:5])), 3)
@@ -134,8 +155,11 @@ class HybridRAGPipeline:
             try:
                 llm_answer = await grounded_llm_client.answer(query, context)
                 if llm_answer:
+<<<<<<< HEAD
                     if is_emergency_query:
                         return SOS_FIRST_PREFIX + llm_answer, confidence
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
                     return llm_answer, confidence
             except Exception as exc:  # pragma: no cover
                 logger.warning("Grounded LLM answer failed; using extractive fallback: %s", exc)
@@ -145,6 +169,7 @@ class HybridRAGPipeline:
             + "\n\n".join(f"- {part[:900]}" for part in context_parts[:4])
             + "\n\nImmediate rule: if there is life risk, fire, trapped person, heavy bleeding, unconsciousness, or threat to safety, trigger SOS/call emergency services first."
         )
+<<<<<<< HEAD
         if is_emergency_query:
             answer = SOS_FIRST_PREFIX + answer
         return answer, confidence
@@ -159,6 +184,15 @@ class HybridRAGPipeline:
         keyword = await self._keyword_search(db, query, settings.RAG_TOP_K_KEYWORD)
         chunks = self._rrf(semantic, keyword)[:8]
         answer, confidence = await self._compose_grounded_answer(query, chunks, is_emergency_query)
+=======
+        return answer, confidence
+
+    async def answer(self, db: AsyncSession, query: str, lat: float | None = None, lng: float | None = None, include_services: bool = True) -> dict[str, Any]:
+        semantic = await self._semantic_search(db, query, settings.RAG_TOP_K_SEMANTIC)
+        keyword = await self._keyword_search(db, query, settings.RAG_TOP_K_KEYWORD)
+        chunks = self._rrf(semantic, keyword)[:8]
+        answer, confidence = await self._compose_grounded_answer(query, chunks)
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
         services: list[dict[str, Any]] = []
         if include_services and lat is not None and lng is not None:
@@ -167,7 +201,10 @@ class HybridRAGPipeline:
         return {
             "answer": answer,
             "confidence": confidence,
+<<<<<<< HEAD
             "emergency_detected": is_emergency_query,
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
             "citations": [
                 {"source_key": c.source_key, "title": c.title, "chunk_index": c.chunk_index, "heading": c.heading, "score": c.score}
                 for c in chunks[:5]

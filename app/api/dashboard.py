@@ -165,11 +165,14 @@ async def incident_timeline(
             SELECT 'notification' AS event_type, created_at, channel, recipient_type, recipient, status, payload
             FROM notification_logs
             WHERE incident_id = :incident_id
+<<<<<<< HEAD
             UNION ALL
             SELECT 'responder_attempt' AS event_type, created_at, channel, responder_type AS recipient_type,
                    responder_id::text AS recipient, status, payload
             FROM incident_responder_attempts
             WHERE incident_id = :incident_id
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
             ORDER BY created_at ASC
             """
         ),

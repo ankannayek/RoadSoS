@@ -21,7 +21,10 @@ engine = create_async_engine(
     pool_size=5,
     max_overflow=10,
     pool_recycle=1800,
+<<<<<<< HEAD
     pool_timeout=10,
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     echo=False,
     future=True,
 )
@@ -34,8 +37,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
+<<<<<<< HEAD
         except Exception:
             await session.rollback()
             raise
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
         finally:
             await session.close()

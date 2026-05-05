@@ -1,19 +1,31 @@
 from __future__ import annotations
 
+<<<<<<< HEAD
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import insert, select
+=======
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
 from app.db.session import get_db
+<<<<<<< HEAD
 from app.models.incident import Incident, IncidentResponderAttempt, IncidentStatus
 from app.models.user import User
 from app.models.volunteer import Volunteer
 from app.schemas.volunteer import VolunteerCreate, VolunteerIncidentResponse, VolunteerIncidentResponseOut, VolunteerOut, VolunteerUpdate
 from app.services.geo import find_nearby_volunteers
 from app.services.websocket_manager import websocket_manager
+=======
+from app.models.user import User
+from app.models.volunteer import Volunteer
+from app.schemas.volunteer import VolunteerCreate, VolunteerOut, VolunteerUpdate
+from app.services.geo import find_nearby_volunteers
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 router = APIRouter()
 
@@ -76,6 +88,7 @@ async def get_nearby_volunteers(
 ):
     volunteers = await find_nearby_volunteers(lat, lng, db=db, radius_km=radius_km)
     return {"volunteers": volunteers}
+<<<<<<< HEAD
 
 
 @router.post("/incidents/{incident_id}/respond", response_model=VolunteerIncidentResponseOut)
@@ -136,3 +149,5 @@ async def respond_to_incident(
         volunteer_id=volunteer.id,
         incident_status=incident.status.value,
     )
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0

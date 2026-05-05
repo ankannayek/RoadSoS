@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+<<<<<<< HEAD
 import hashlib
 import time
 from dataclasses import dataclass
+=======
+import time
+from dataclasses import dataclass
+from typing import Optional
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 from fastapi import Request, status
 from starlette.responses import JSONResponse
@@ -32,6 +38,7 @@ def policy_for_path(path: str) -> RateLimitPolicy:
 def client_identifier(request: Request) -> str:
     auth = request.headers.get("authorization", "")
     if auth.lower().startswith("bearer "):
+<<<<<<< HEAD
         digest = hashlib.sha256(auth.removeprefix("Bearer ").removeprefix("bearer ").encode("utf-8")).hexdigest()
         return f"token:{digest}"
     forwarded = request.headers.get("x-forwarded-for")
@@ -40,12 +47,27 @@ def client_identifier(request: Request) -> str:
         return f"ip:{hashlib.sha256(raw_ip.encode('utf-8')).hexdigest()}"
     host = request.client.host if request.client else "unknown"
     return f"ip:{hashlib.sha256(host.encode('utf-8')).hexdigest()}"
+=======
+        # Token hash avoids storing token itself in cache keys.
+        return f"token:{hash(auth[-48:])}"
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return f"ip:{forwarded.split(',')[0].strip()}"
+    host = request.client.host if request.client else "unknown"
+    return f"ip:{host}"
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 
 class RateLimiter:
     async def hit(self, key: str, policy: RateLimitPolicy) -> tuple[bool, int]:
         bucket_key = f"ratelimit:{policy.name}:{key}:{int(time.time() // policy.window_seconds)}"
+<<<<<<< HEAD
         count = await cache.increment_window(bucket_key, ttl_seconds=policy.window_seconds + 2)
+=======
+        current = await cache.get(bucket_key)
+        count = int(current or 0) + 1
+        await cache.set(bucket_key, count, ttl_seconds=policy.window_seconds + 2)
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
         remaining = max(policy.requests - count, 0)
         return count <= policy.requests, remaining
 
@@ -55,8 +77,12 @@ rate_limiter = RateLimiter()
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+<<<<<<< HEAD
         path = request.url.path
         if path.startswith("/health") or path in {"/docs", "/openapi.json", "/redoc"} or "/ws" in path:
+=======
+        if request.url.path in {"/health", "/docs", "/openapi.json", "/redoc"} or request.url.path.startswith("/ws/"):
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
             return await call_next(request)
         policy = policy_for_path(request.url.path)
         ok, remaining = await rate_limiter.hit(client_identifier(request), policy)

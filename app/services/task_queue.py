@@ -39,6 +39,7 @@ class BackgroundTaskQueue:
         task.add_done_callback(self._log_result)
         return task
 
+<<<<<<< HEAD
     async def enqueue(
         self,
         db: AsyncSession,
@@ -48,11 +49,15 @@ class BackgroundTaskQueue:
         run_at: datetime | None = None,
         dedupe_key: str | None = None,
     ) -> UUID | None:
+=======
+    async def enqueue(self, db: AsyncSession, job_type: str, payload: dict, max_attempts: int = 3) -> UUID | None:
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
         if settings.TASK_QUEUE_BACKEND != "database":
             handler = self._handlers.get(job_type)
             if handler:
                 self.create_task(handler(payload), name=f"job:{job_type}")
             return None
+<<<<<<< HEAD
         if dedupe_key:
             existing = await db.execute(
                 select(BackgroundJob.id).where(
@@ -71,12 +76,16 @@ class BackgroundTaskQueue:
             status="pending",
             run_at=run_at or datetime.now(timezone.utc),
         )
+=======
+        job = BackgroundJob(job_type=job_type, payload_json=payload, max_attempts=max_attempts, status="pending")
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
         db.add(job)
         await db.flush()
         self.wake()
         return job.id
 
     async def enqueue_escalation(self, db: AsyncSession, incident_id: str) -> UUID | None:
+<<<<<<< HEAD
         return await self.enqueue(
             db,
             "sos_escalation_tier0",
@@ -84,12 +93,16 @@ class BackgroundTaskQueue:
             max_attempts=5,
             dedupe_key=f"sos:{incident_id}:tier0",
         )
+=======
+        return await self.enqueue(db, "sos_escalation", {"incident_id": str(incident_id)}, max_attempts=5)
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
     async def run_worker_forever(self) -> None:
         if settings.TASK_QUEUE_BACKEND != "database":
             return
         self._wake_event = asyncio.Event()
         self._stop_event = asyncio.Event()
+<<<<<<< HEAD
         logger.info("Background task worker started with concurrency=%s", settings.TASK_WORKER_CONCURRENCY)
         workers = [
             asyncio.create_task(self._worker_loop(worker_id), name=f"task-worker:{worker_id}")
@@ -105,6 +118,9 @@ class BackgroundTaskQueue:
 
     async def _worker_loop(self, worker_id: int) -> None:
         assert self._stop_event is not None
+=======
+        logger.info("Background task worker started")
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
         while not self._stop_event.is_set():
             try:
                 worked = await self._run_one_due_job()
@@ -118,8 +134,14 @@ class BackgroundTaskQueue:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:  # pragma: no cover
+<<<<<<< HEAD
                 logger.exception("Background task worker %s loop error: %s", worker_id, exc)
                 await asyncio.sleep(2)
+=======
+                logger.exception("Background task worker loop error: %s", exc)
+                await asyncio.sleep(2)
+        logger.info("Background task worker stopped")
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
     def wake(self) -> None:
         if self._wake_event:
@@ -176,11 +198,15 @@ class BackgroundTaskQueue:
 
     async def _mark_succeeded(self, job_id: UUID) -> None:
         async with AsyncSessionLocal() as db:
+<<<<<<< HEAD
             await db.execute(
                 update(BackgroundJob)
                 .where(BackgroundJob.id == job_id)
                 .values(status="succeeded", locked_at=None, error=None, updated_at=datetime.now(timezone.utc))
             )
+=======
+            await db.execute(update(BackgroundJob).where(BackgroundJob.id == job_id).values(status="succeeded", locked_at=None, error=None))
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
             await db.commit()
 
     async def _mark_failed(self, job_id: UUID, error: str, retry: bool) -> None:
@@ -197,7 +223,10 @@ class BackgroundTaskQueue:
                 job.status = "failed"
             job.locked_at = None
             job.error = error[:4000]
+<<<<<<< HEAD
             job.updated_at = datetime.now(timezone.utc)
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
             await db.commit()
 
     @staticmethod

@@ -38,11 +38,14 @@ class UserLogin(BaseModel):
     password: str = Field(..., min_length=1, max_length=128)
 
 
+<<<<<<< HEAD
 class AdminBootstrapRequest(BaseModel):
     phone: str = Field(..., min_length=5, max_length=20)
     bootstrap_token: str = Field(..., min_length=48, max_length=512)
 
 
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 class UserUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=2, max_length=100)
     email: Optional[EmailStr] = None

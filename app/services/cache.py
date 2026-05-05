@@ -23,12 +23,15 @@ class Cache:
     async def delete(self, key: str) -> None:
         raise NotImplementedError
 
+<<<<<<< HEAD
     async def increment_window(self, key: str, ttl_seconds: int) -> int:
         raise NotImplementedError
 
     async def ping(self) -> bool:
         raise NotImplementedError
 
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 class InMemoryCache(Cache):
     def __init__(self) -> None:
@@ -54,6 +57,7 @@ class InMemoryCache(Cache):
         async with self._lock:
             self._data.pop(key, None)
 
+<<<<<<< HEAD
     async def increment_window(self, key: str, ttl_seconds: int) -> int:
         async with self._lock:
             expires_at, value = self._data.get(key, (time.time() + ttl_seconds, 0))
@@ -66,6 +70,8 @@ class InMemoryCache(Cache):
     async def ping(self) -> bool:
         return True
 
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 class RedisCache(Cache):
     def __init__(self, url: str) -> None:
@@ -85,6 +91,7 @@ class RedisCache(Cache):
     async def delete(self, key: str) -> None:
         await self.client.delete(key)
 
+<<<<<<< HEAD
     async def increment_window(self, key: str, ttl_seconds: int) -> int:
         script = """
         local current = redis.call('INCR', KEYS[1])
@@ -98,17 +105,25 @@ class RedisCache(Cache):
     async def ping(self) -> bool:
         return bool(await self.client.ping())
 
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 def build_cache() -> Cache:
     if settings.REDIS_URL:
         try:
             return RedisCache(settings.REDIS_URL)
+<<<<<<< HEAD
         except Exception as exc:
             if settings.is_production and settings.REQUIRE_REDIS_IN_PRODUCTION:
                 raise RuntimeError("Redis cache is required in production") from exc
             return InMemoryCache()
     if settings.is_production and settings.REQUIRE_REDIS_IN_PRODUCTION:
         raise RuntimeError("REDIS_URL is required in production when REQUIRE_REDIS_IN_PRODUCTION=true")
+=======
+        except Exception:
+            # Local fallback lets development continue; production should alert.
+            return InMemoryCache()
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     return InMemoryCache()
 
 

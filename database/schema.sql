@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(30) NOT NULL DEFAULT 'user';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_tokens JSONB NOT NULL DEFAULT '[]'::jsonb;
 
+<<<<<<< HEAD
 CREATE TABLE IF NOT EXISTS user_private_profiles (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     key_id VARCHAR(80) NOT NULL,
@@ -46,6 +47,8 @@ CREATE TABLE IF NOT EXISTS user_private_profiles (
     updated_at TIMESTAMPTZ
 );
 
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 CREATE TABLE IF NOT EXISTS volunteers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
@@ -79,7 +82,11 @@ CREATE TABLE IF NOT EXISTS incidents (
     lng DOUBLE PRECISION NOT NULL,
     location GEOGRAPHY(POINT, 4326),
     status incidentstatus NOT NULL DEFAULT 'active',
+<<<<<<< HEAD
     accepted_responder_id UUID REFERENCES volunteers(id) ON DELETE SET NULL,
+=======
+    accepted_responder_id UUID,
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ,
@@ -118,8 +125,13 @@ CREATE TABLE IF NOT EXISTS emergency_services (
 
 CREATE TABLE IF NOT EXISTS service_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+<<<<<<< HEAD
     service_id UUID REFERENCES emergency_services(id) ON DELETE SET NULL,
     reporter_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+=======
+    service_id UUID,
+    reporter_user_id UUID,
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     name VARCHAR(150) NOT NULL,
     type VARCHAR(30) NOT NULL,
     phone VARCHAR(20),
@@ -142,7 +154,11 @@ CREATE TABLE IF NOT EXISTS feedback (
 
 CREATE TABLE IF NOT EXISTS notification_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+<<<<<<< HEAD
     incident_id UUID REFERENCES incidents(id) ON DELETE SET NULL,
+=======
+    incident_id UUID,
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     recipient_type VARCHAR(30) NOT NULL,
     recipient VARCHAR(255),
     channel VARCHAR(30) NOT NULL,
@@ -156,7 +172,10 @@ CREATE TABLE IF NOT EXISTS notification_logs (
 CREATE TABLE IF NOT EXISTS background_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_type VARCHAR(80) NOT NULL,
+<<<<<<< HEAD
     dedupe_key VARCHAR(160),
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
     status VARCHAR(30) NOT NULL DEFAULT 'pending',
     attempts INTEGER NOT NULL DEFAULT 0,
@@ -188,7 +207,11 @@ CREATE TABLE IF NOT EXISTS rag_chunks (
     text TEXT NOT NULL,
     token_count INTEGER NOT NULL DEFAULT 0,
     embedding_model VARCHAR(80) NOT NULL DEFAULT 'hashing-v1',
+<<<<<<< HEAD
     embedding vector(768),
+=======
+    embedding vector(384),
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     search_vector TSVECTOR,
     metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -242,7 +265,10 @@ FOR EACH ROW EXECUTE FUNCTION set_service_location();
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+<<<<<<< HEAD
 CREATE INDEX IF NOT EXISTS idx_user_private_profiles_key ON user_private_profiles(key_id);
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 CREATE INDEX IF NOT EXISTS idx_volunteers_available ON volunteers(available) WHERE available = true;
 CREATE INDEX IF NOT EXISTS idx_volunteers_location ON volunteers USING GIST (location);
 CREATE INDEX IF NOT EXISTS idx_volunteers_last_active ON volunteers(last_active DESC);
@@ -257,9 +283,12 @@ CREATE INDEX IF NOT EXISTS idx_feedback_volunteer ON feedback(volunteer_id);
 CREATE INDEX IF NOT EXISTS idx_notification_incident ON notification_logs(incident_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_background_jobs_due ON background_jobs(status, run_at);
 CREATE INDEX IF NOT EXISTS idx_background_jobs_type ON background_jobs(job_type);
+<<<<<<< HEAD
 CREATE UNIQUE INDEX IF NOT EXISTS uq_background_jobs_dedupe_active
 ON background_jobs(dedupe_key)
 WHERE dedupe_key IS NOT NULL AND status IN ('pending', 'running');
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 CREATE INDEX IF NOT EXISTS idx_rag_sources_key ON rag_sources(source_key);
 CREATE INDEX IF NOT EXISTS idx_rag_chunks_search ON rag_chunks USING GIN (search_vector);
 CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding ON rag_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # env
 .env
 .env.*
@@ -24,3 +25,12 @@ __pycache__/
 
 # logs
 *.log
+=======
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0

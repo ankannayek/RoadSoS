@@ -10,20 +10,29 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.notifications import DeviceTokenResponse, DeviceTokenUpdate
 from app.schemas.user import UserOut, UserUpdate
+<<<<<<< HEAD
 from app.services.private_profile import PRIVATE_PROFILE_KEYS, build_user_out, load_private_profile, upsert_private_profile
+=======
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 router = APIRouter()
 
 
 @router.get("/me", response_model=UserOut)
+<<<<<<< HEAD
 async def get_me(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     private_profile = await load_private_profile(db, current_user)
     return build_user_out(current_user, private_profile)
+=======
+async def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 
 @router.patch("/me", response_model=UserOut)
 async def update_me(payload: UserUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     data = payload.model_dump(exclude_unset=True)
+<<<<<<< HEAD
     private_updates = {key: data.pop(key) for key in list(data.keys()) if key in PRIVATE_PROFILE_KEYS}
     if "email" in data and data["email"] is not None:
         data["email"] = str(data["email"])
@@ -37,6 +46,17 @@ async def update_me(payload: UserUpdate, db: AsyncSession = Depends(get_db), cur
     await db.refresh(current_user)
     private_profile = await load_private_profile(db, current_user)
     return build_user_out(current_user, private_profile)
+=======
+    if "email" in data and data["email"] is not None:
+        data["email"] = str(data["email"])
+    if "emergency_contacts" in data and data["emergency_contacts"] is not None:
+        data["emergency_contacts"] = [item.model_dump() if hasattr(item, "model_dump") else item for item in data["emergency_contacts"]]
+    for key, value in data.items():
+        setattr(current_user, key, value)
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 
 @router.post("/me/device-token", response_model=DeviceTokenResponse)

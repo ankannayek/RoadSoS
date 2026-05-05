@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+<<<<<<< HEAD
 from typing import Dict, Tuple
+=======
+from typing import Dict, Iterable, Tuple
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 
 @dataclass(frozen=True)
 class Rule:
     priority: str
+<<<<<<< HEAD
     base_score: float
     terms: tuple[str, ...]
 
@@ -316,10 +321,30 @@ def classify_emergency(
     explicit rules only. P1 is reserved for clear life threat or critical
     sensors; diverse serious road events remain P2 unless they include P1
     context.
+=======
+    score: float
+    terms: tuple[str, ...]
+
+
+RULES: tuple[Rule, ...] = (
+    Rule("P1_CRITICAL", 0.99, ("not breathing", "unconscious", "no pulse", "cardiac arrest", "major bleeding", "heavy bleeding", "head injury", "trapped", "rollover", "vehicle fire", "explosion", "drowning", "electric shock", "severe crash", "hit and run injured")),
+    Rule("P2_HIGH", 0.84, ("breathing problem", "chest pain", "stroke", "seizure", "fracture", "broken bone", "pregnant", "child injured", "elderly injured", "bike accident", "motorcycle", "assault", "harassment", "followed", "robbery")),
+    Rule("P3_MEDIUM", 0.62, ("injury", "pain", "stuck", "minor bleeding", "lost", "panic", "sprain", "unable to move", "stranded")),
+    Rule("P4_LOW", 0.35, ("flat tire", "puncture", "breakdown", "battery dead", "out of fuel", "tow", "mechanic", "lost keys")),
+)
+
+
+def classify_emergency(description: str, impact_force: float = 0, sensor_payload: Dict | None = None) -> Tuple[str, float]:
+    """Fast deterministic triage.
+
+    This intentionally does not call AI. SOS routing must be deterministic,
+    auditable, and fast enough for immediate emergency response.
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
     """
     text = (description or "").lower().strip()
     sensor_payload = sensor_payload or {}
 
+<<<<<<< HEAD
     sensor_critical = (
         impact_force >= 8.0
         or sensor_payload.get("airbag_deployed") is True
@@ -361,6 +386,20 @@ def _apply_source_uplift(priority: str, score: float, source: str) -> Tuple[str,
     if source == "bystander" and priority_order.get(priority, 3) > 2:
         return "P3_MEDIUM", max(score, 0.60)
     return priority, score
+=======
+    # Sensor overrides for severe auto-detect events.
+    if impact_force >= 8.0 or sensor_payload.get("airbag_deployed") is True or sensor_payload.get("rollover") is True:
+        return "P1_CRITICAL", 1.0
+    if impact_force >= 5.0:
+        return "P2_HIGH", 0.82
+
+    for rule in RULES:
+        if any(term in text for term in rule.terms):
+            return rule.priority, rule.score
+
+    # Default to medium instead of low because ambiguous road emergencies can deteriorate.
+    return "P3_MEDIUM", 0.50
+>>>>>>> d4f78981cc38ff26fade88ca9eda8ea4ce1befd0
 
 
 def response_eta(priority: str) -> str:
