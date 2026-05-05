@@ -1,8 +1,26 @@
+# env
 .env
+.env.*
+
+# virtual env
 .venv/
+venv/
+
+# python cache
 __pycache__/
 *.pyc
+
+# pytest / mypy
 .pytest_cache/
 .mypy_cache/
-.tmp/
+
+# misc
 .DS_Store
+.tmp/
+
+# IDE
+.vscode/
+.idea/
+
+# logs
+*.log
