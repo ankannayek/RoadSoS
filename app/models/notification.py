@@ -1,0 +1,23 @@
+from __future__ import annotations
+
+import uuid
+
+from sqlalchemy import Column, DateTime, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+
+from app.db.session import Base
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    incident_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    recipient_type = Column(String(30), nullable=False)
+    recipient = Column(String(255), nullable=True)
+    channel = Column(String(30), nullable=False)
+    status = Column(String(30), nullable=False)
+    provider_message_id = Column(String(255), nullable=True)
+    error = Column(Text, nullable=True)
+    payload = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

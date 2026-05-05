@@ -1,0 +1,241 @@
+# RoadSoS Road Emergency Scenario Guide
+Version: v1.0
+Purpose: Grounded knowledge base for the Helper Bot only. This document must not be used to delay SOS dispatch. The SOS escalation ladder is heuristic-only and runs without AI.
+Safety boundary: In any life-threatening situation, trigger SOS or call the local emergency number first. The helper bot can provide general guidance while help is being dispatched, but it must not diagnose, replace emergency services, or ask the user to perform risky actions.
+
+PIPELINE 1: RAG INGESTION PIPELINE
+Input sources: RoadSoS static safety guide, verified government emergency numbers, validated OSM/Gov/NHAI/emergency-service data, and moderated user reports.
+Steps:
+1. Normalize text, remove duplicates, attach source metadata, language, geography, and last-validated date.
+2. Apply semantic chunking by scenario heading, risk level, and action block. Keep chunks small enough for retrieval but preserve "Do" and "Do not" instructions together.
+3. Generate embeddings for semantic retrieval and a tsvector index for keyword retrieval.
+4. Store chunks in Neon Postgres with pgvector, source_key, chunk_index, heading, confidence, and version.
+5. Reject outdated or unverified local service entries unless the response clearly labels them as unverified.
+6. Schedule re-validation for service data and keep the old validated entry until the new one passes confidence checks.
+
+PIPELINE 2: RAG QUERY PIPELINE
+Input: User natural-language question, optional location, language, and context such as active incident id.
+Steps:
+1. Rate-limit helper queries per user/token to avoid abuse.
+2. Classify the query intent: first aid guidance, vehicle problem, safety threat, nearby service lookup, legal/documentation question, or general prevention.
+3. Run hybrid retrieval: semantic vector search plus keyword/full-text search.
+4. Fuse results with reciprocal rank fusion and prefer recent, validated, local sources.
+5. Apply emergency guardrails: if query mentions life risk, unconsciousness, severe bleeding, fire, trapped person, assault, or active danger, tell user to trigger SOS/call emergency services first.
+6. Answer only from retrieved chunks. If confidence is low, say the system does not have enough grounded information and suggest SOS or official help.
+7. If location is present, include nearby emergency services from PostGIS and clearly label confidence/source.
+8. Never provide instructions that increase risk, such as moving a suspected spinal-injury victim without immediate danger, touching exposed EV electrical parts, entering fire/smoke, or confronting aggressors.
+
+SCENARIO 1: Life-threatening crash with unconscious person
+Risk level: P1_CRITICAL.
+Trigger terms: unconscious, not responding, not breathing, only gasping, no pulse, severe crash, high impact, rollover.
+Immediate action: Trigger SOS/call emergency services. Check scene safety before approaching. Check responsiveness and breathing quickly. If the person is unresponsive and not breathing or only gasping, start CPR or compression-only CPR if trained and use an AED if available. Keep bystanders back and send one person to guide responders.
+Do not: Do not move the person unless there is immediate danger such as fire, water, or traffic. Do not give food, drink, or medicine.
+Data to collect: Location, number of injured people, breathing status, visible bleeding, vehicle type, hazards, and whether anyone is trapped.
+Routing: Ambulance/trauma, police, nearby trained volunteers, emergency contacts.
+
+SCENARIO 2: Heavy bleeding after crash
+Risk level: P1_CRITICAL.
+Trigger terms: heavy bleeding, major bleeding, blood not stopping, deep cut, amputation.
+Immediate action: Trigger SOS/call emergency services. Apply steady direct pressure on the bleeding wound with cloth, gauze, or clothing. Keep pressure until help arrives or until another trained person takes over. If trained and bleeding is life-threatening from an arm or leg, use a tourniquet according to training.
+Do not: Do not remove deeply embedded objects. Do not repeatedly lift the cloth to check the wound. Do not delay emergency services.
+Data to collect: Bleeding location, approximate severity, whether pressure is working, shock signs, and victim consciousness.
+Routing: Ambulance/trauma, nearest hospital, trained volunteers.
+
+SCENARIO 3: Suspected head, neck, or spinal injury
+Risk level: P1_CRITICAL or P2_HIGH depending on consciousness and breathing.
+Trigger terms: head injury, neck pain, back pain, numbness, weakness, cannot move legs, thrown from bike, helmet damage.
+Immediate action: Trigger SOS/call emergency services. Encourage the person to stay still. Stabilize their head and neck only if trained and safe. Monitor breathing and responsiveness.
+Do not: Do not remove a motorcyclist's helmet unless airway/CPR requires it and you are trained. Do not move the person unless there is immediate danger.
+Data to collect: Mechanism of crash, helmet use, consciousness, vomiting, seizure, weakness, numbness.
+Routing: Ambulance/trauma, police for traffic control.
+
+SCENARIO 4: Person trapped inside vehicle
+Risk level: P1_CRITICAL.
+Trigger terms: trapped, pinned, cannot open door, crushed, rollover, stuck under vehicle.
+Immediate action: Trigger SOS/call emergency services and fire/rescue if available. Keep talking to the trapped person. Turn off ignition if safely reachable. Warn traffic and keep people away from unstable vehicle.
+Do not: Do not pull the person out unless there is immediate danger such as fire or drowning. Do not attempt vehicle cutting without trained rescue equipment.
+Data to collect: Number trapped, vehicle stability, fire/smoke, fuel leak, electric vehicle/hybrid signs.
+Routing: Fire/rescue, ambulance/trauma, police, highway patrol.
+
+SCENARIO 5: Vehicle fire or smoke
+Risk level: P1_CRITICAL.
+Trigger terms: fire, smoke, burning smell, explosion, engine fire.
+Immediate action: Stop in a safe place if driving, turn off vehicle, move everyone away, trigger SOS/call fire and emergency services. Keep uphill/upwind if possible.
+Do not: Do not open a hot/smoking hood fully. Do not re-enter the vehicle for belongings. Do not use water on unknown electrical/fuel fires unless trained.
+Data to collect: Fire location, trapped people, vehicle type, fuel/EV/hybrid, nearby hazards.
+Routing: Fire, ambulance, police/highway patrol.
+
+SCENARIO 6: Electric or hybrid vehicle crash
+Risk level: P1_CRITICAL if fire, exposed wires, trapped people, or submersion; otherwise P2_HIGH.
+Trigger terms: EV, electric car, hybrid, battery, exposed cable, high voltage.
+Immediate action: Trigger SOS/call emergency services and mention electric/hybrid vehicle. Keep people away from exposed electrical components, battery fluids, smoke, or damaged high-voltage cables. If safe, shift to park, set brake, turn off vehicle, and move key/fob away.
+Do not: Do not touch exposed wires, battery pack, orange cables, leaking fluid, or engine compartment. Do not tow/push a badly damaged EV without trained responders.
+Data to collect: Make/model if safe, fire/smoke, submersion, exposed cables, trapped people.
+Routing: Fire/rescue, ambulance, police, specialist towing.
+
+SCENARIO 7: Vehicle in water or flooding/submersion
+Risk level: P1_CRITICAL.
+Trigger terms: water, river, canal, flood, submerged, drowning.
+Immediate action: Trigger SOS/call emergency services. Leave vehicle immediately if safe. Move to higher ground. If someone is drowning, call for trained rescue; use reach/throw methods rather than entering dangerous water.
+Do not: Do not enter floodwater or deep/fast water to rescue unless trained. Do not stay in a sinking vehicle to gather belongings.
+Data to collect: Number of people, vehicle location, water depth/current, access route.
+Routing: Fire/rescue, ambulance, police/disaster response.
+
+SCENARIO 8: Fuel leak, chemical leak, or hazardous spill
+Risk level: P1_CRITICAL if fire/smoke/breathing symptoms; otherwise P2_HIGH.
+Trigger terms: petrol leak, diesel leak, gas smell, chemical, tanker, hazardous material, fumes.
+Immediate action: Move people away from spill and ignition sources. Trigger SOS/call emergency services. Keep upwind. Warn traffic.
+Do not: Do not smoke, light flames, start vehicles near spill, touch unknown chemicals, or inhale fumes.
+Data to collect: Spill type if known, tanker placards, wind direction, symptoms, fire risk.
+Routing: Fire/hazmat, police, ambulance.
+
+SCENARIO 9: Motorcycle/scooter crash
+Risk level: P1_CRITICAL for unconscious, heavy bleeding, head/neck injury; otherwise P2_HIGH.
+Trigger terms: bike accident, motorcycle, scooter, helmet, rider down.
+Immediate action: Trigger SOS for serious injury. Keep rider still. Control bleeding with pressure. Protect from traffic. Monitor breathing.
+Do not: Do not remove helmet unless needed for airway/CPR and you are trained. Do not force the rider to stand.
+Data to collect: Helmet damage, speed, bleeding, consciousness, limb deformity.
+Routing: Ambulance/trauma, police, volunteers.
+
+SCENARIO 10: Pedestrian or cyclist hit by vehicle
+Risk level: P1_CRITICAL or P2_HIGH.
+Trigger terms: pedestrian hit, cyclist hit, hit by car, person on road.
+Immediate action: Trigger SOS/call emergency services. Protect the person from traffic with hazard lights/triangles if safe. Keep them still and monitor breathing.
+Do not: Do not move the person unless needed for immediate safety. Do not let crowd block airflow or responders.
+Data to collect: Victim age estimate, consciousness, bleeding, vehicle left scene or not, exact lane/location.
+Routing: Ambulance, police, traffic control.
+
+SCENARIO 11: Multi-vehicle highway crash
+Risk level: P1_CRITICAL.
+Trigger terms: pileup, multiple vehicles, highway crash, many injured.
+Immediate action: Trigger SOS/call emergency services. Move uninjured people behind barriers if safe. Warn approaching traffic from a safe distance. Share GPS, direction of travel, lane, and nearest marker/toll/plaza.
+Do not: Do not stand in active lanes. Do not argue about fault. Do not move seriously injured people unless immediate danger exists.
+Data to collect: Number of vehicles, number injured/trapped, fire/spill, road blockage.
+Routing: Ambulance, police/highway patrol, fire/rescue, towing.
+
+SCENARIO 12: Breakdown in dangerous traffic area
+Risk level: P2_HIGH if stranded in live traffic; P4_LOW if safely parked.
+Trigger terms: breakdown, engine stopped, stalled, battery dead, flat tire in traffic.
+Immediate action: Turn on hazard lights. Move to shoulder or safe area if possible. Stay behind barriers if safe. Use SOS if location is unsafe or you are vulnerable. Request towing/mechanic for non-medical cases.
+Do not: Do not change tire in a live traffic lane. Do not stand behind/in front of vehicle on highway.
+Data to collect: Road name, direction, lane/shoulder, vehicle issue, passengers, night/weather.
+Routing: Towing/mechanic, highway patrol, police if unsafe.
+
+SCENARIO 13: Flat tire/puncture
+Risk level: P4_LOW if safe; P2_HIGH if highway/night/unsafe.
+Trigger terms: flat tire, puncture, tyre burst.
+Immediate action: Slow gradually, turn on hazards, stop in a safe flat area away from traffic. Use reflective triangle if safe. Request roadside help if not safe to change.
+Do not: Do not brake suddenly after tire burst. Do not repair tire close to moving traffic.
+Data to collect: Location, tire position, spare availability, traffic danger.
+Routing: Roadside assistance/towing, highway patrol if unsafe.
+
+SCENARIO 14: Out of fuel or battery dead
+Risk level: P4_LOW if safe; P2_HIGH if stranded in unsafe location.
+Trigger terms: out of fuel, battery dead, car not starting.
+Immediate action: Move to safe place if possible, hazards on, share GPS, request assistance. Stay in safe area. Use SOS if alone at night, in unsafe location, with child/elderly, or threatened.
+Do not: Do not walk on highway shoulder unless unavoidable. Do not accept unsafe help from strangers.
+Data to collect: Fuel type, vehicle type, nearest landmark, passengers.
+Routing: Roadside assistance, trusted contact, police/highway patrol if unsafe.
+
+SCENARIO 15: Road rage, harassment, stalking, robbery threat
+Risk level: P2_HIGH or P1_CRITICAL if immediate assault/weapon.
+Trigger terms: followed, road rage, threat, harassment, robbery, attacker, unsafe person.
+Immediate action: Trigger silent SOS if speaking is unsafe. Drive/walk toward a public, well-lit, police/official area if possible. Share live location. Keep doors locked and windows up.
+Do not: Do not confront the aggressor. Do not go home if being followed. Do not stop in isolated area.
+Data to collect: Description of person/vehicle, plate number if safe, direction, threat type.
+Routing: Police, emergency contacts, nearby volunteers only if safe.
+
+SCENARIO 16: Medical emergency while driving
+Risk level: P1_CRITICAL for unconscious/not breathing/chest pain/stroke/seizure; otherwise P2_HIGH.
+Trigger terms: chest pain, stroke, seizure, asthma, fainting, diabetic, allergic reaction.
+Immediate action: Stop safely if you are the driver. Trigger SOS/call emergency services. Keep person comfortable and monitor breathing. Use prescribed rescue medication only if it belongs to the person and you are trained/authorized.
+Do not: Do not let the person continue driving. Do not give food/drink to unconscious person.
+Data to collect: Symptoms, age, medications, allergies, medical conditions, time symptoms started.
+Routing: Ambulance/medical, emergency contacts.
+
+SCENARIO 17: Child, elderly, pregnant, or disabled passenger emergency
+Risk level: P1_CRITICAL/P2_HIGH depending on symptoms.
+Trigger terms: child injured, baby, elderly, pregnant, wheelchair, disabled.
+Immediate action: Trigger SOS/call emergency services if injured, trapped, overheated, breathing issues, or high stress. Keep them safe from traffic/weather. Share special needs.
+Do not: Do not leave child/elderly person alone in vehicle. Do not move severely injured person unless necessary for safety.
+Data to collect: Age, pregnancy stage if known, disability/accessibility needs, medical info.
+Routing: Ambulance, volunteers with appropriate skills, emergency contacts.
+
+SCENARIO 18: Heat, cold, dehydration, or weather exposure while stranded
+Risk level: P2_HIGH if symptoms are severe; P3_MEDIUM otherwise.
+Trigger terms: heatstroke, hypothermia, dehydration, stuck in rain, cold, faint.
+Immediate action: Move to safer temperature if possible. Trigger SOS if confusion, fainting, stopped sweating in heat, shivering stops in cold, or vulnerable passengers are present. Sip water if awake and able.
+Do not: Do not stay in extreme heat/cold waiting without notifying someone. Do not give fluids to unconscious person.
+Data to collect: Weather, symptoms, water availability, passenger vulnerabilities.
+Routing: Ambulance if symptoms, roadside/highway assistance otherwise.
+
+SCENARIO 19: Animal collision or animal on road
+Risk level: P2_HIGH if injury or blocked road; P4_LOW if no injury and safe.
+Trigger terms: animal hit, cow on road, dog hit, deer, livestock.
+Immediate action: Pull over safely, hazards on, do not approach aggressive/wild animals. Trigger SOS for human injuries or major road hazard.
+Do not: Do not swerve dangerously. Do not stand in traffic to manage animals.
+Data to collect: Location, road blockage, injuries, animal type.
+Routing: Police/highway patrol, animal rescue if available, ambulance if injury.
+
+SCENARIO 20: Fallen tree, landslide, debris, or road blocked
+Risk level: P2_HIGH if immediate collision risk; P3_MEDIUM otherwise.
+Trigger terms: road blocked, tree fallen, landslide, debris, pothole hazard.
+Immediate action: Stop at safe distance, hazards on, report location and lane blockage. Trigger SOS if crash/injury or trapped traffic.
+Do not: Do not attempt to clear large debris in traffic. Do not stand downhill of landslide/unstable slope.
+Data to collect: Road name, direction, blockage size, injuries, photos only if safe.
+Routing: Highway patrol, police, road authority, rescue if trapped.
+
+SCENARIO 21: Bystander reporting for someone else
+Risk level: Depends on victim condition; default P1/P2 for crash/injury.
+Trigger terms: accident happened to someone, I saw crash, person lying on road.
+Immediate action: Use Bystander Mode. Give exact GPS and what you see. Stay safe; do not enter traffic. Ask another bystander to call official emergency number if possible.
+Do not: Do not crowd the victim. Do not move them unless immediate danger. Do not post identifying images publicly.
+Data to collect: Number injured, consciousness, bleeding, vehicle type, hazards, police/ambulance already called or not.
+Routing: Ambulance/police, nearby volunteers, dashboard.
+
+SCENARIO 22: Silent SOS / cannot speak
+Risk level: P1/P2.
+Trigger terms: silent, cannot talk, unsafe to speak, hiding, followed.
+Immediate action: Send GPS, motion state, battery, and minimal preset category. Use vibration/visual confirmation only. Escalate to police/emergency contacts without requiring chat.
+Do not: Do not force a voice call or loud alert. Do not display sensitive notifications on lock screen if silent mode is active.
+Data to collect: GPS, accuracy, heading, optional threat category, trusted contact preference.
+Routing: Police, emergency contacts, dashboard, SMS fallback.
+
+SCENARIO 23: Ambulance delayed / no responder accepts
+Risk level: Same as original incident, but escalation increases.
+Trigger terms: no one came, ambulance late, help not arrived.
+Immediate action: Keep SOS active. Re-broadcast with wider radius, official services, dashboard escalation, and emergency contacts. Provide first-aid guidance only if safe and grounded.
+Do not: Do not cancel unless user confirms safety. Do not rely only on volunteers for P1 incidents.
+Data to collect: Updated condition, responder ETA, exact current GPS, road accessibility.
+Routing: Wider volunteers, official services, dashboard verification, fallback SMS/WhatsApp.
+
+SCENARIO 24: False alarm / accidental SOS
+Risk level: System safety case.
+Trigger terms: accidental, false alarm, cancel.
+Immediate action: Allow authenticated user to cancel with reason. Notify already-dispatched responders that the incident is cancelled. Keep audit log.
+Do not: Do not delete incident history. Do not penalize user on first accidental trigger.
+Data to collect: Cancellation reason, time-to-cancel, whether responders were contacted.
+Routing: Cancel notifications, dashboard audit.
+
+SCENARIO 25: Post-incident rating and feedback
+Risk level: Operational quality.
+Trigger terms: rate responder, feedback, volunteer was helpful, bad response.
+Immediate action: Collect 1-5 stars and optional note after incident resolution. Re-rank volunteers using smoothed rating and response reliability.
+Do not: Do not expose private medical or personal details in public feedback.
+Data to collect: incident_id, responder_id, rating, note, response time.
+Routing: Feedback engine, volunteer ranking, admin dashboard.
+
+GENERAL HELPER BOT RESPONSE RULES
+1. Start with the safest immediate action.
+2. If a life-threatening keyword appears, say: "Trigger SOS/call emergency services now" before any other guidance.
+3. Ask at most one urgent clarification only when it changes immediate safety, such as "Is the person breathing?".
+4. Use short steps suitable for panic situations.
+5. Never say help is guaranteed. Say help has been requested/dispatched if the backend confirms it.
+6. Keep medical advice general and within first-aid scope.
+7. Never ask the user to upload photos of injuries before calling help.
+8. Never reveal volunteer phone numbers publicly unless the workflow authorizes it.
+9. If the user is driving, tell them not to type and to stop safely first.
+10. If retrieved confidence is low, escalate to official help instead of improvising.
+
+DEFAULT EMERGENCY NUMBERS FOR INDIA CONTEXT
+Use 112 as unified emergency help for police, fire, medical, and disaster response where available. On National Highways, 1033 is a highway emergency/helpdesk route. Regional ambulance systems may use 108. Always prefer the local official number confirmed for the user's region.
