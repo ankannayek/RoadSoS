@@ -1,0 +1,97 @@
+RoadSoS Hybrid RAG Function Spec
+================================
+
+Scope
+-----
+The RAG system is only for the Helper Bot and non-immediate user questions. It must not sit in the SOS dispatch path. SOS uses deterministic triage + PostGIS matching + escalation ladder.
+
+Function: ingest_road_emergency_knowledge(source)
+-------------------------------------------------
+Input:
+- title
+- source_key
+- source_type: static, gov, osm, nhai, user_report, medical_reference
+- content
+- geography
+- validated_at
+- confidence_score
+
+Process:
+1. Validate source metadata.
+2. Remove duplicate paragraphs and stale service records.
+3. Split by semantic scenario headings and action boundaries.
+4. Preserve "Do" and "Do not" instructions inside the same chunk.
+5. Generate embedding.
+6. Generate full-text search vector.
+7. Store chunk with version and source metadata in Neon.
+8. Mark prior source version inactive only after new version is successfully indexed.
+
+Output:
+- source_id
+- chunk_count
+- warnings for unverified entries
+
+Function: answer_helper_query(query, user_context)
+--------------------------------------------------
+Input:
+- query text
+- optional lat/lng
+- optional active incident id
+- user language
+- user auth identity from JWT
+
+Process:
+1. Rate limit query by authenticated user/token/IP.
+2. Detect emergency keywords. If life risk exists, first line must tell the user to trigger SOS/call emergency services.
+3. Run semantic vector search.
+4. Run keyword/BM25-style full text search.
+5. Fuse rankings using reciprocal rank fusion.
+6. Filter by source confidence and freshness.
+7. Pull nearby services from PostGIS when lat/lng is supplied.
+8. Compose grounded answer from retrieved chunks only.
+9. Return citations/source keys for traceability.
+10. If confidence is below threshold, refuse to guess and route to SOS/official help.
+
+Output:
+- answer
+- confidence
+- citations: source_key, chunk_index, heading, score
+- matched_services
+- safety_notice
+
+Emergency Guardrail Keywords
+----------------------------
+P1: unconscious, not breathing, only gasping, heavy bleeding, trapped, vehicle fire, rollover, drowning, electric shock, child injured, pregnant injured, explosion, severe head injury.
+P2: chest pain, stroke, seizure, broken bone, harassment, followed, robbery, stranded at night, highway breakdown, fuel leak, EV crash, smoke.
+
+Rate Limiting
+-------------
+- /helper/query: default 20 requests/minute per token/IP.
+- /sos/trigger: default 3 requests/minute per token/IP to prevent abuse while allowing repeated emergency retries.
+- /auth: default 10 requests/minute per IP/token.
+Use Redis in production; in-memory is development fallback only.
+
+Caching
+-------
+- Offline service prefetch is cached by geohash.
+- RAG chunks are persistent in Neon.
+- Retrieval results can be cached by normalized query + geohash for short TTL, but not while active incident condition changes.
+
+Pub/Sub
+-------
+- Incident updates publish to incident:{incident_id}.
+- WebSocket subscribers receive created, tier0_dispatched, tier1_escalated, tier2_broadcast, tier3_dashboard_alert, location_updated, status_updated.
+- Redis Pub/Sub is production path; in-memory event bus is local fallback.
+
+Evaluation Checklist
+--------------------
+1. Trigger SOS must return within one DB round-trip after JWT validation and triage.
+2. RAG must never be called inside SOS trigger or escalation ladder.
+3. P1/P2 escalation must reach official services even if volunteers do not accept.
+4. Helper bot must not answer beyond retrieved chunks.
+5. Heavy bleeding, unconsciousness, vehicle fire, trapped person, EV exposed cables, submersion, harassment, and highway breakdown must retrieve correct scenario chunks.
+6. Rate limiter must return HTTP 429 when exceeded.
+7. WebSocket must receive incident events.
+8. Feedback rating must update volunteer ranking with smoothing.
+9. Offline services cache must return geohash + nearby services.
+10. Database must have GIST indexes for PostGIS and vector/full-text indexes for RAG.
