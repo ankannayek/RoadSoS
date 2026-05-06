@@ -10,10 +10,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.session import get_db
+from app.models.incident import Incident, IncidentSource, IncidentStatus, PriorityEnum
 from app.services.task_queue import task_queue
 
 logger = logging.getLogger(__name__)
@@ -62,12 +64,14 @@ async def receive_mesh_relay(
         raise HTTPException(status_code=400, detail="Invalid compressed payload")
         
     incident_id = payload.get("i")
+    user_id = payload.get("u")
     lat = payload.get("l", [None, None])[0]
     lng = payload.get("l", [None, None])[1]
     priority = payload.get("p")
     
     try:
         incident_id = str(UUID(str(incident_id)))
+        user_id = str(UUID(str(user_id)))
         lat = float(lat)
         lng = float(lng)
     except (TypeError, ValueError):
@@ -88,6 +92,7 @@ async def receive_mesh_relay(
         "process_mesh_relay",
         {
             "incident_id": incident_id,
+            "user_id": user_id,
             "lat": lat,
             "lng": lng,
             "priority": priority,
@@ -104,15 +109,44 @@ async def receive_mesh_relay(
 
 # Task queue handler for the mesh packet
 async def handle_mesh_relay(payload: dict) -> None:
-    # In a real scenario, this would verify the incident exists (or create a ghost incident),
-    # then immediately trigger Tier 0 / Tier 1 notifications based on the provided lat/lng.
+    """Task handler to process a mesh packet and ensure the incident exists."""
     incident_id = payload.get("incident_id")
-    logger.info(f"Processing mesh relay packet for incident {incident_id} after {payload.get('hops')} hops.")
+    user_id = payload.get("user_id")
+    lat = payload.get("lat")
+    lng = payload.get("lng")
+    priority_str = payload.get("priority") or "P1_CRITICAL"
+
+    logger.info(f"Processing mesh relay packet for incident {incident_id} (user {user_id}) after {payload.get('hops')} hops.")
     
-    # We re-use the standard escalation if it exists, or handle custom logic
     from app.db.session import AsyncSessionLocal
     async with AsyncSessionLocal() as db:
-        await task_queue.enqueue_escalation(db, incident_id)
+        # 1. Check if the incident already exists (maybe another relay beat us to it)
+        result = await db.execute(select(Incident).where(Incident.id == UUID(str(incident_id))))
+        incident = result.scalar_one_or_none()
+        
+        if not incident:
+            logger.info(f"Creating ghost incident {incident_id} from mesh payload.")
+            try:
+                priority_enum = PriorityEnum(priority_str)
+            except ValueError:
+                priority_enum = PriorityEnum.P1_CRITICAL
+
+            incident = Incident(
+                id=UUID(str(incident_id)),
+                user_id=UUID(str(user_id)),
+                description="OFFLINE SOS: Triggered via Mesh Relay (Bluetooth/SMS).",
+                priority=priority_enum,
+                source=IncidentSource.MANUAL,
+                lat=lat,
+                lng=lng,
+                status=IncidentStatus.ACTIVE,
+                metadata_json={"mesh_hops": payload.get("hops")}
+            )
+            db.add(incident)
+            await db.flush()
+
+        # 2. Trigger standard escalation
+        await task_queue.enqueue_escalation(db, str(incident.id))
         await db.commit()
 
 task_queue.register("process_mesh_relay", handle_mesh_relay)

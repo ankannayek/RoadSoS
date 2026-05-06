@@ -10,6 +10,7 @@ class VolunteerCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     phone: str = Field(..., min_length=5, max_length=20)
     skills: List[str] = Field(default_factory=list)
+    
     lat: float = Field(..., ge=-90, le=90)
     lng: float = Field(..., ge=-180, le=180)
     available: bool = False
